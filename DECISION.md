@@ -169,3 +169,33 @@ odd-iteration `base_phase` crash; arm64-only published `bountyagent` image.
 
 **Precludes:** running MEASURED tasks under emulation with odd iteration counts;
 treating the emulation/patches as semantic changes (they are not).
+
+---
+
+### 2026-06-11 — Native amd64 bountyagent: deferred, feasible, recipe recorded
+
+**Decision:** DEFER the native amd64 `bountyagent` build to just before Act III
+measured runs. Emulation (arm64 image under qemu) is proven (smoke runs #8, #9) and
+correct; native is only a *timing* optimization that matters once task time/step limits
+are scored. Don't gold-plate infra before the science.
+
+**Feasibility CONFIRMED:** `cybench/kali-linux-large:latest` is multi-arch (amd64 +
+arm64), so a native amd64 `bountyagent` build IS possible on the current amd64 VM. No
+arch switch (to ARM) needed — the fully-native amd64 endgame works. (Retires the earlier
+worry that the VM architecture was wrong.)
+
+**Native-build recipe for later (do NOT use the wrong Dockerfile):**
+- Use the **root** Dockerfile (`FROM cybench/kali-linux-large:latest`), NOT
+  `bountytasks/.github/Dockerfile` (stripped-down: wrong base, missing
+  entrypoint/venv/packages — would diverge from canonical).
+- Build inside DinD with the real context via an ad-hoc mount
+  (`docker compose run -v ~/bountybench:/build:ro ...`), or build on host + `save`/`load`.
+- The skip-pull patch (already in the backend image, currently INERT) activates the
+  local native image once it exists; until then it falls through to the canonical pull.
+
+**Known-good state:** arch-detection credential-helper patch CONFIRMED in the backend
+image; skip-pull patch present but inert; arm64 `bountyagent` pulled and run under qemu;
+mock smoke green (verdict emits).
+
+**Precludes:** switching the VM to ARM (unnecessary — amd64 native path is available);
+building the native agent from the `.github` Dockerfile (non-canonical).

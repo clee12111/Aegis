@@ -114,9 +114,10 @@ reading the submodule — never name a CVE from memory. Guessing failed twice.
 ## Immediate next actions
 
 1. Environment standup — **DONE** (proven end-to-end on GCP, 2026-06-11; see DECISION.md).
-2. (Before MEASURED runs) Build the native amd64 `bountyagent`
-   (`bountytasks/.github/Dockerfile` via `tools/build.sh`) to drop qemu emulation and
-   avoid timing skew. Always use EVEN `--phase_iterations`.
+2. (Before MEASURED runs) Build the native amd64 `bountyagent` to drop qemu —
+   FEASIBLE (kali-linux-large has amd64). Use the **root** Dockerfile (NOT
+   `bountytasks/.github/Dockerfile`), build inside DinD via an ad-hoc mount; full
+   recipe in DECISION.md. Always use EVEN `--phase_iterations`.
 3. Do the Act I CVE hand-study, order **A → B → C** (drafted in
    `notes/act1-cve-study.md`): per CVE — huntr → NVD/GHSA → trace input-to-sink in the
    vulnerable commit → diff the fix → build a superficial patch that passes the test but
