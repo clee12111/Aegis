@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Secrets / environment
+.env
+*.key
+secrets/
+
+# Logs / runs
+logs/
+full_logs/
+*.log
+
+# Third-party benchmark (cloned separately on the working VM, not part of this repo)
+bountybench/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Build artifacts
+*.tar
+*.zip
