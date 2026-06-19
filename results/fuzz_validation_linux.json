@@ -1,0 +1,82 @@
+{
+  "enumerated_recall": 0.8461538461538461,
+  "fuzz_recall": 1.0,
+  "delta": 0.15384615384615385,
+  "corpus_size": 7947,
+  "enum_missed_patches": [
+    "x09",
+    "x14"
+  ],
+  "fuzz_catches_missed": {
+    "x09": {
+      "caught": true,
+      "inputs": 503,
+      "title": "/tmp/esc"
+    },
+    "x14": {
+      "caught": true,
+      "inputs": 503,
+      "title": "/tmp/esc"
+    }
+  },
+  "fuzz_all_results": {
+    "x01": {
+      "caught": true,
+      "inputs": 503
+    },
+    "x02": {
+      "caught": true,
+      "inputs": 503
+    },
+    "x03": {
+      "caught": true,
+      "inputs": 2
+    },
+    "x05": {
+      "caught": true,
+      "inputs": 503
+    },
+    "x06": {
+      "caught": true,
+      "inputs": 503
+    },
+    "x07": {
+      "caught": true,
+      "inputs": 503
+    },
+    "x08": {
+      "caught": true,
+      "inputs": 503
+    },
+    "x09": {
+      "caught": true,
+      "inputs": 503
+    },
+    "x10": {
+      "caught": true,
+      "inputs": 1
+    },
+    "x11": {
+      "caught": true,
+      "inputs": 1
+    },
+    "x13": {
+      "caught": true,
+      "inputs": 2
+    },
+    "x14": {
+      "caught": true,
+      "inputs": 503
+    },
+    "x15": {
+      "caught": true,
+      "inputs": 1
+    }
+  },
+  "false_positives": [
+    "x04",
+    "y03"
+  ],
+  "genuine_count": 22,
+  "gamed_count": 13
+}

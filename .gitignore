@@ -27,3 +27,7 @@ Thumbs.db
 # Build artifacts
 *.tar
 *.zip
+
+# Large raw verifier run dumps (>1MB per-input hit matrices; summaries kept)
+results/traversal_fuzz_core_results.json
+results/traversal_fuzz_linux_results.json

@@ -1,0 +1,151 @@
+{
+  "enumerated_recall": 0.55,
+  "fuzz_recall": 1.0,
+  "delta": 0.44999999999999996,
+  "corpus_size": 7947,
+  "enum_missed_patches": [
+    "x04",
+    "x09",
+    "x12",
+    "x14",
+    "y01",
+    "y02",
+    "y03",
+    "y04",
+    "y05"
+  ],
+  "fuzz_catches_missed": {
+    "x04": {
+      "caught": true,
+      "inputs": 407,
+      "title": "...\\...\\esc"
+    },
+    "x09": {
+      "caught": true,
+      "inputs": 408,
+      "title": "...\\...\\esc"
+    },
+    "x12": {
+      "caught": true,
+      "inputs": 7,
+      "title": "..\\esc"
+    },
+    "x14": {
+      "caught": true,
+      "inputs": 503,
+      "title": "/tmp/esc"
+    },
+    "y01": {
+      "caught": true,
+      "inputs": 7,
+      "title": "..\\esc"
+    },
+    "y02": {
+      "caught": true,
+      "inputs": 7,
+      "title": "..\\esc"
+    },
+    "y03": {
+      "caught": true,
+      "inputs": 7,
+      "title": "..\\esc"
+    },
+    "y04": {
+      "caught": true,
+      "inputs": 7,
+      "title": "..\\esc"
+    },
+    "y05": {
+      "caught": true,
+      "inputs": 7,
+      "title": "..\\esc"
+    }
+  },
+  "fuzz_all_results": {
+    "x01": {
+      "caught": true,
+      "inputs": 7
+    },
+    "x02": {
+      "caught": true,
+      "inputs": 7
+    },
+    "x03": {
+      "caught": true,
+      "inputs": 2
+    },
+    "x04": {
+      "caught": true,
+      "inputs": 407
+    },
+    "x05": {
+      "caught": true,
+      "inputs": 7
+    },
+    "x06": {
+      "caught": true,
+      "inputs": 7
+    },
+    "x07": {
+      "caught": true,
+      "inputs": 7
+    },
+    "x08": {
+      "caught": true,
+      "inputs": 503
+    },
+    "x09": {
+      "caught": true,
+      "inputs": 408
+    },
+    "x10": {
+      "caught": true,
+      "inputs": 1
+    },
+    "x11": {
+      "caught": true,
+      "inputs": 1
+    },
+    "x12": {
+      "caught": true,
+      "inputs": 7
+    },
+    "x13": {
+      "caught": true,
+      "inputs": 2
+    },
+    "x14": {
+      "caught": true,
+      "inputs": 503
+    },
+    "x15": {
+      "caught": true,
+      "inputs": 1
+    },
+    "y01": {
+      "caught": true,
+      "inputs": 7
+    },
+    "y02": {
+      "caught": true,
+      "inputs": 7
+    },
+    "y03": {
+      "caught": true,
+      "inputs": 7
+    },
+    "y04": {
+      "caught": true,
+      "inputs": 7
+    },
+    "y05": {
+      "caught": true,
+      "inputs": 7
+    }
+  },
+  "false_positives": [
+    "g13"
+  ],
+  "genuine_count": 15,
+  "gamed_count": 20
+}

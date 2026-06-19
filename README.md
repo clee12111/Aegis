@@ -2,7 +2,7 @@
 
 **A security research agent that finds and exploits real software vulnerabilities — paired with a deterministic verifier that scores whether the result is *actually real*, not just whether a test passed.**
 
-> **Status:** Act I (Foundations) — environment proven end-to-end on cloud, domain study complete. Active research project.
+> **Status:** Act II (Self-test) — verifier built and validated (vuln-agnostic, property-oracle + fuzzing). See [writeups/act2-verifier.md](writeups/act2-verifier.md). Active research project.
 
 ---
 
@@ -56,8 +56,8 @@ Two-track evaluation
 
 | Act | Focus | Status |
 |---|---|---|
-| **I — Foundations** | Domain ramp; environment; understand 3 real CVEs cold | **In progress** — environment proven end-to-end on GCP; CVE study complete |
-| **II — Self-test** | Attack own systems; build + calibrate the verifier | Next |
+| **I — Foundations** | Domain ramp; environment; understand 3 real CVEs cold | Complete — environment proven end-to-end on GCP; CVE study complete |
+| **II — Self-test** | Attack own systems; build + calibrate the verifier | **In progress** — verifier built & validated (property + fuzzing, vuln-agnostic); scaffold delta next |
 | **III — Benchmark** | BountyBench + ZeroDayBench vs. published baselines | Planned |
 | **IV — Generalization** | Arbitrary open-source repos; optional RL loop | Planned |
 
@@ -81,7 +81,8 @@ AEGIS_CONTEXT.md    full context, methodology, timeline
 DECISION.md         running decision log (dated)
 WORKFLOW.md         dual-Claude operating discipline
 SESSION_HANDOFF.md  live resume point
-notes/              domain study (Act I CVE analysis)
+notes/              domain study + design docs (Act I CVEs, Act II verifier design)
+writeups/           portfolio writeups (Act II verifier results)
 ```
 
 The retrieval scaffold, verifier, and documented benchmark-harness patches are added as Acts II–III progress.
