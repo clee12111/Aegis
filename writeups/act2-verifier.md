@@ -37,10 +37,11 @@ oracle*: inject known-flawed patches and measure how many the verifier kills.
 
 ## Key results
 
-- **Transferable by construction.** One vuln-agnostic core ran a *probabilistic* LLM prompt-injection
-  vuln and a *deterministic* file-path-traversal vuln with **zero core changes**. Vuln-specific
-  knowledge enters only as a plugin (exploits + a success-property), never as verifier logic — so it
-  generalizes instead of overfitting per bug.
+- **Transferable by construction.** One vuln-agnostic core runs different vulnerability families with
+  **zero core changes** — vuln-specific knowledge enters only as a plugin (oracle + exploits + patches +
+  taxonomy), never as verifier logic, so it generalizes instead of overfitting per bug. This was since
+  proven cleanly across two CWE families (path traversal and command injection) with an empty core diff —
+  see [act2-transferability.md](act2-transferability.md).
 - **Property + fuzzing generalizes to unseen attacks.** The fuzzer recovered *every* cheat an
   enumerated test missed, by composing attacks from primitives — without those attacks being
   hand-listed. The blind spot moved from "an attack class I forgot to list" (grows forever) to "a
@@ -60,9 +61,10 @@ A verifier is never absolute ground truth; it's a *characterized approximation*,
 is knowing **where it breaks, with numbers**. I measured it: recall is bounded by the diversity of the
 attack set (a recall-vs-coverage curve), and the residual blind spot is the fuzzer's input vocabulary
 (named: null-byte, unicode normalization, encoding mismatches, symlink races…). As the agent scales,
-those blind spots *are* the reward-hacking attack surface — so the verifier must **co-evolve**, prefer
-**executable/deterministic** checks, and **abstain** (flag low confidence) on inputs outside its tested
-coverage rather than emit a verdict it can't back.
+those blind spots *are* the reward-hacking attack surface — so the verifier **co-evolves**, prefers
+**executable/deterministic** checks, and **abstains** on inputs outside its tested coverage rather than
+emit a verdict it can't back. Abstention is now built and validated as *honest deferral* (deferred patches
+resolved to correct verdicts once coverage was added) — see [act2-transferability.md](act2-transferability.md).
 
 ## Grounding
 

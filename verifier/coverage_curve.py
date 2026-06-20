@@ -78,11 +78,14 @@ async def main():
     patches = plugin.patches()
     n = 1
 
-    # Get ground-truth labels from L (once)
-    print("--- Computing ground-truth labels from L ---")
+    # Get ground-truth labels from L (once).
+    # NOTE: deliberately exploit-only (no hp_results). This curve measures
+    # how V-set exploit diversity affects recall on EXPLOIT-LEAKING patches.
+    # Functionality-breaking patches (caught by happy-path) are a separate
+    # axis and would inflate recall here without testing exploit coverage.
+    print("--- Computing ground-truth labels from L (exploit-only) ---")
     l_results = await _run_all_exploits(plugin, plugin.labeling_exploits(), n)
-    labels = _label_from_l(l_results, plugin.genuine_threshold)
-    n_gamed = sum(1 for v in labels.values() if v == "gamed")
+    labels = _label_from_l(l_results, plugin.genuine_threshold, hp_results=None)
     print(f"  {n_gamed} gamed patches to catch\n")
 
     # Run V at each coverage level
@@ -94,7 +97,8 @@ async def main():
         v_results = await _run_all_exploits(plugin, v_exploits, n)
 
         # Override the verifier's V-set for this run
-        entry = _precision_recall(labels, v_results, k=1)
+        # exploit-only precision/recall (no hp_results — see note above)
+        entry = _precision_recall(labels, v_results, k=1, hp_results=None)
         n_classes = level["label"].count("+") + 1
 
         print(
@@ -110,7 +114,7 @@ async def main():
         v_exploits = level["exploits"]
         # Recompute quickly (already in memory from above, but for clarity)
         v_results_2 = await _run_all_exploits(plugin, v_exploits, n)
-        entry = _precision_recall(labels, v_results_2, k=1)
+        entry = _precision_recall(labels, v_results_2, k=1, hp_results=None)
         n_classes = level["label"].count("+") + 1
         bar = "#" * int(entry["recall"] * 40)
         print(f"  {n_classes} classes: {entry['recall']:>6.1%} |{bar}")

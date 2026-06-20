@@ -256,6 +256,24 @@ boundary:
 Net: the advisor can now do recon and lightweight edits/runs itself; the engineer
 still owns Docker, the full harness, and anything needing the real environment.
 
+### Skill triggering — persistence (read this; it does not auto-trigger)
+
+The frontier skills (`frontier-audit`, `frontier-bar`) do NOT reliably auto-trigger
+(tested: silent skip). They fire from EXPLICIT invocation, and that invocation must
+survive across sessions — so it lives in auto-loaded files, not just WORKFLOW.md:
+
+- **Engineer (Claude Code) self-enforces:** after any non-trivial work, before declaring
+  done, run `frontier-audit` and report its verdict — *from your own standing instructions,
+  regardless of what the advisor's prompt said.* (Put this rule in `~/.claude/CLAUDE.md` so
+  every session loads it.)
+- **Advisor:** every non-trivial engineer prompt ENDS with "run `frontier-audit` on done";
+  consequence-dense / shipping work OPENS with "run `frontier-bar` first."
+- **Backstops, in order:** a commit-gate hook (model-independent) → the human's
+  frontier-review question (depends on nothing).
+
+Persistence = auto-loaded CLAUDE.md + hook, never a doc you must remember to open. Full
+rules in WORKFLOW.md.
+
 ---
 
 ## Foundational decisions

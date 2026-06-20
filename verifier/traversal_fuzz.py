@@ -22,7 +22,10 @@ from typing import Any
 
 from verifier.fuzzer import generate_fuzz_corpus
 from verifier.plugin import VulnPlugin
-from verifier.traversal import _PATCHES, _L_EXPLOITS, _run_in_sandbox
+from verifier.traversal import (
+    _PATCHES, _L_EXPLOITS, _HAPPY_PATH, _TAXONOMY,
+    _run_in_sandbox, _run_happy_in_sandbox,
+)
 
 
 class TraversalFuzzPlugin(VulnPlugin):
@@ -70,9 +73,27 @@ class TraversalFuzzPlugin(VulnPlugin):
         """Fuzz corpus as the V set."""
         return self._get_corpus()
 
+    def baseline_sanitizer(self):
+        return lambda title, fmt: (title, fmt)
+
+    def exploit_class_taxonomy(self) -> set[str]:
+        return set(_TAXONOMY)
+
     def patches(self) -> dict[str, dict]:
         """Same patch registry."""
         return dict(_PATCHES)
+
+    def happy_path(self) -> dict[str, Any]:
+        """Same happy-path inputs as enumerated plugin."""
+        return dict(_HAPPY_PATH)
+
+    async def run_happy_path(self, input_id, input_data, patch_id, patch_data):
+        """Run one legitimate input through the patch."""
+        return _run_happy_in_sandbox(
+            input_data["title"],
+            input_data["format"],
+            patch_data["sanitize"],
+        )
 
     async def run_exploit(self, exploit_id, exploit_data, patch_id, patch_data, n):
         """Run one fuzz/exploit attempt. Same oracle as enumerated.

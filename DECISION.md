@@ -456,9 +456,298 @@ the reward-hack attack surface (a scaling agent optimizes toward uncovered class
 security-critical error is the recall MISS (passing a gamed patch), which the curve quantifies.
 
 "Validated" now has a concrete answer: precision/recall + coverage curve + explicit unknown-blind-
-spot caveat. **Verifier half of Act II is honestly DONE.** Next: the scaffold delta (capability half).
+spot caveat. ~~Verifier half of Act II is honestly DONE.~~ **SUPERSEDED 2026-06-19** — see below: held
+against an independent frontier bar, the verifier is industry-standard, NOT frontier (Failure 3 caught
+on ourselves). The frontier is *calibration*, which we hadn't built.
+
+---
+
+### 2026-06-19 — Verifier frontier-bar: calibration IS the contribution; thesis not novel [anchors need live verification]
+
+Independent research pass (separate chat + papers) set the verifier's bar. The workflow caught
+Failure 3 on us — we called the verifier "done" at industry-standard.
+
+**Thesis is NOT novel:** "benchmarks score surface, not robustness" = the decade-old patch-overfitting
+problem (Smith 2015; 73-81% APR overfit). Field already pivoted: VulnRepairEval (Sep'25), ZeroDayBench
+(Mar'26), PatchEval (ByteDance Nov'25), AutoPatchBench (Meta), AIxCC (DARPA Aug'25). Pitch as
+"known-hot problem, NOVEL MECHANISM" — never as fresh insight. [verify anchors via frontier-bar]
+
+**Defensible wedge (mechanism):** variant-class robustness as a CALIBRATED, ABSTAINING,
+oracle-stratified, OUT-OF-SAMPLE-validated verifier. Narrow, honest, solo-sized.
+
+**Reframe:** security is where RLVR's cheap-sound-verification assumption fails BY CONSTRUCTION — so
+the verifier isn't plumbing, its CALIBRATION is the research. Completeness impossible (co-bounded
+support / "invisible leash"; reference-free verification as hard as the vuln research). Frontier
+(AIxCC, Big Sleep) verifies by DEMONSTRATION (working trigger), never proof of robustness; even they
+evaluate on known bugs.
+
+**Our verifier vs the bar (gaps):**
+- Binary verdict → needs CONFIDENCE + per-instance ABSTENTION (gate on baseline-exploit
+  establishability; blind → abstain, don't emit confident verdict). Biggest gap; direct fix for the
+  novel-bug failure.
+- No oracle-quality STRATIFICATION per CWE (sound ASan/UBSan/differential vs blind logic/auth).
+  Anchor: AIxCC 75% C vs 17% Java fuzzer reliability.
+- Held-out = SAME-fuzzer-family → generator overfitting. Frontier: INDEPENDENT engine + report A→B
+  generalization gap (walk-forward / AIxCC cross-team validation).
+- Invested in FUZZER (reachability); frontier invests in ORACLE (detectability — sanitizers/assertions
+  compiled in). Big Sleep: assertion made bug observable; fuzzer missed it 150 CPU-hrs.
+- No functionality/regression gating (anti "delete-the-feature"). AIxCC: ~40% of frontier patches
+  passed PoV+functional tests but were semantically wrong (symptom suppression) — the motivation number.
+
+**Achievable solo result:** % of single-PoC-passing patches that FAIL variant-class eval — a number.
+
+**Actions:** (1) RENAME — "Aegis" reportedly taken (2025 co-evolutionary prompt-injection framework)
+[verify]. (2) Run `frontier-bar` → FRONTIER.md, VERIFYING all anchors live (don't trust the prior
+chat — no bottom turtle). (3) Anchors to read: AIxCC SoK (arXiv 2602.07666), Project Zero Naptime→Big
+Sleep, Buttercup (open-source CRS), MultiRetrieval.
 
 Files (VM): verifier/* (+ coverage-curve results).
+
+**UPDATE 2026-06-19 (c) — Axis 5 CLOSED, frontier-audit verdict: AT BAR.** Reclassified g02/g08
+(genuine→gamed, subtype functionality-breaking — caught by our own fuzzer, not by hand); added
+gamed_subtype metadata (20 exploit-leaking / 5 functionality-breaking / 1 delete-feature); cleanups done
+(happy-path computed once not twice; coverage_curve.py explicit hp_results=None; corpus invariant assert
+on .. / \ ). Numbers: cheat_catch 26/26=100%, happy_pass 13/13=100%, V-set precision 100%, recall 65.4%
+(+23.1pp), F1 79.1% (+19.6pp). KEY FRAMING for writeup: the 65.4% recall is NOT an Axis 5 limit — all 9
+remaining false-negatives are Axis 3 (V-exploit set covers only attack classes A–D; patches leaking an
+unseen class slip through). So verifier-integrity number today = "precision 100%, recall bounded by
+exploit-class diversity." Honest residual (audit, defensible scoping not median): gamed_subtype is
+documentary not machine-enforced; g02/g08 keep "g" prefix; no CI gate on gold set. Next: Axis 1
+(abstention) — the calibration piece.
+
+**UPDATE 2026-06-19 (m) — TRANSFERABILITY PROVEN: CommandInjectionPlugin runs with ZERO core changes
+(frontier-audit AT BAR).** New file verifier/cmdinject.py (CWE-78 + CWE-88) implements VulnPlugin; core.py
+diff is EMPTY. Same evaluate()/_precision_recall_3way/abstention/coverage-manifest ran a 2nd CWE family
+identically. Numbers: 17 patches, TP=12/TN=5/0FP/0FN, P/R/F1=100%, abstention 0%, 8 classes / 2 geometries
+(shell-metachar + argument-injection), baseline 8/9 fire (CV3 `||` is a dud — `true` succeeds so `||`
+never fires; minor within-class &&/|| gap). DESIGNED FINDING LANDED: cg01 (shlex.quote) — the textbook
+CWE-78 fix — re-stratified to GAMED, caught by arg-flag exploits (CV8 `-n`, CV9 `--help`); shlex.quote
+escapes metacharacters but passes `-flag` through. We PREDICTED it (applied the symlink-to-file lesson
+proactively) rather than being surprised. CAVEATS (recorded, fix on hardening): (1) arg-flag oracle is a
+PROPERTY proxy ("output starts with -"), not a behavioral side-effect oracle — a small crack in the
+"behavioral not heuristic" thesis; (2) the sanitizer-function model can't represent the CANONICAL fix
+(switch to shell=False list-form = a call-pattern change, not input transformation) — so the genuine set
+is all input-sanitization, missing the best-practice architectural fix; (3) happy-path still 5 hand-picked
+(no fuzzer, same as traversal pre-scale); (4) `true` no-op target (sound oracle but no command-behavior
+interaction). **STRATEGIC STATE (anti-Failure-3 on ourselves):** machinery is validated + transferable on
+SYNTHETIC gold sets only. The verifier has NEVER seen a real patch; precision/recall is against
+self-authored labels (self-consistency caveat). NOT "Act II done." NEXT FRONTIER = real vulnerabilities:
+take the machinery to a real BountyBench CVE (build a gold set from the actual CVE fix = genuine + known
+bypasses/reverts = gamed), producing the first numbers comparable to published baselines — the bridge to
+Act III and where the landscape says the edge lives (a measured verifier-integrity number nobody else
+reports). Decision pending: bridge to real CVE vs capture-milestone-writeup vs harden synthetic plugins.
+
+**UPDATE 2026-06-19 (l) — Integrity fix SHIPPED (coverage manifest), frontier-audit AT BAR.** Retired
+unqualified `suite_complete=True`. evaluate() now emits a per-class COVERAGE MANIFEST (geometry tags:
+string-input for A/B/D/F; symlink-through-dir + symlink-to-file for symlink) + standing caveat ("graded
+under tested coverage; untested geometries are residual risk, not certified safe"); headline says
+"coverage: provisional (see manifest)". Verdicts UNCHANGED (reporting-only): TP=38/TN=1/0FP/0FN,
+abstention 0%. grep-verified: no user-facing "complete"/"safe" without qualification. `all_classes_covered`
+bool retained for its internal abstention role only. CARRY-FORWARD (fold into the CWE-78 work, not a
+separate round): manifest is descriptive-only → add `known-untested` geometry list per class (e.g. symlink
+known-untested: chained, TOCTOU-race, relative-target) to make it a roadmap.
+
+**UPDATE 2026-06-19 (k) — OSS landscape scoped; 2nd vuln = OS Command Injection (CWE-78) to prove
+transferability.** Source-verified survey (notes/oss-landscape.md). Findings: (1) the CRS architecture is
+commoditized — all 7 AIxCC finalists open-sourced (Buttercup/Atlantis/RoboDuck); universal verification =
+"PoV re-run + functional tests." Don't compete on capability. (2) The verifier-INTEGRITY layer is
+UNOCCUPIED in OSS — nobody measures their verifier's precision/recall, abstains, or does coverage/oracle
+stratification. (3) The field just independently VALIDATED the thesis: PVBench (arXiv 2603.06858, Mar 2026)
+finds >40% of "correct" patches fail deeper validation ("none of the recent AVR systems verify..."); they
+fix with more tests, not abstention/measured-precision. (4) CAUTION: AutoPatchBench's white-box differential
+testing partially overlaps our behavioral ORACLE — so the moat is the INTEGRITY DISCIPLINE (measured FP/FN +
+abstention + coverage), NOT the oracle alone. Lead with the verifier's own precision/recall number.
+**2nd-vuln decision = CWE-78 OS Command Injection:** sound side-effect oracle (sentinel command execution /
+benign canary — causally downstream of injection only, analogous to traversal containment); in BountyBench +
+PatchEval + VulnRepairEval (baseline-comparable); anchor Shellshock CVE-2014-6271. SSRF (CWE-918) queued
+3rd; SQLi/deserialization deferred; prompt-injection stays a stub (no sound oracle). TRANSFERABILITY CLAIM:
+the agnostic CORE (abstention, coverage, scoring, manifest) is UNCHANGED — only a new plugin is added.
+NEXT: recon+design the CommandInjectionPlugin (new territory: command-exec oracle + safe/benign sentinels +
+sandboxing) before build.
+
+**UPDATE 2026-06-19 (j) — SYMLINK-TO-FILE probe: 15/16 "genuine" fell; META-FINDING = class-level coverage
+is FALSE completeness.** No-slash symlink-to-file (clean title `report`, output file itself is a symlink).
+15 of 16 survivors fell to GAMED; only g07 held (SHA256-hashes the title → output path unpredictable →
+doesn't hit the planted symlink). The 15 are the STANDARD recommended traversal fixes (Path.name, basename,
+char-allowlist, reject-separators, normpath) — uniformly blind to symlink-to-file because the malicious
+thing is filesystem state at a clean predictable path, not the title. New counts: 1 genuine, 38 gamed.
+**META-FINDING:** directory-symlink said 16 genuine; symlink-to-file within the SAME "symlink" class caught
+15 more → `suite_complete=True` was an OVER-CLAIM. Class-level coverage (V has ≥1 exploit of class X) is
+necessary but NOT sufficient; within-class GEOMETRY diversity matters. This is "complete caught premature"
+for the 2nd time (1st: "verifier done" → frontier-bar; now "symlink covered" → symlink-to-file) — thesis
+VINDICATED, not failed: completeness is unreachable; the recursion class→geometry→… has no bottom (same
+representativeness ceiling as classes). **Audit's key caveat:** the gold set is STRING-DESIGNED (38 string
+sanitizers + 1 hash); only g07 genuinely defends the filesystem layer → filesystem verification isn't yet a
+hard genuine-vs-gamed DISCRIMINATION test, it's a turkey-shoot. The 100% P/R is honest but the test is weak
+there. **CALLS (advisor):** (1) do NOT whack-a-mole sub-classes (unbounded enumeration); drop the binary
+`suite_complete=True` → provisional per-geometry coverage that never claims "complete," only "graded under
+tested geometries; untested = residual risk" (calibration lesson recursing). (2) Gold set needs real
+filesystem-layer patches spanning genuine (resolve()+prefix, O_NOFOLLOW, output randomization) AND gamed
+(off-by-one prefix, TOCTOU lstat-then-write) to make filesystem verification a real discrimination test.
+(3) Long-term: property-based geometry FUZZING over hand-enumeration (same fix as strings). **STRATEGIC
+FORK (hard rule: transferability > per-vuln accuracy):** we've gone very deep on ONE vuln; the MACHINERY
+(abstention, coverage, oracle, fuzzing, workflow) is validated. Risk of over-fitting the verifier to
+traversal. Decision pending: deepen traversal vs take the machinery to a 2nd vuln to prove the agnostic
+core transfers.
+
+**UPDATE 2026-06-19 (i) — SYMLINK coverage SHIPPED; RE-STRATIFICATION is the headline result (audit AT BAR
+Axes 1/5/6).** Built a new attack model (sandbox plants a symlink in upload_dir → write through it →
+resolve()+prefix oracle detects escape; vuln-agnostic — plugin supplies setup). 4 symlink exploits, L/V
+mechanically distinct (L13/L14 vs V9/V10 — genuine independence, unlike string-class V-mirrors-L). With
+symlink covered, suite_complete=True, abstention 51%→0%, 39/39 graded, P/R/F1=100%, 0 FP/FN — earned on
+Linux. **THE RESULT:** 4 patches that were GENUINE under string-only coverage FELL to GAMED — g13, x04,
+y03, y05 — they stop ../ but are blind to symlinks. **g13 is the crown jewel:** plain `normpath` + reject
+leading ../absolute — the textbook string-only "fix" — was genuine through EVERY prior iteration; the
+moment a filesystem-level vector appeared, it fell. Exactly the Big Sleep variant-analysis pattern (looks
+correct vs the known surface, fails a related-but-distinct vector) and the precise failure this verifier
+exists to catch. Validates the taxonomy-expansion thesis on our own gold set: a string-only verifier
+certifies g13 genuine forever. **HONEST CAVEAT (audit #4, important):** the 16 survivors mostly block the
+symlink payload INCIDENTALLY — their char-sanitizers reject `/`, and the symlink-through-directory payload
+contains `/`. So they may be robust to THIS payload, not to symlinks in general. NEXT (audit's cheapest
+experiment): a NO-SLASH symlink (the symlink IS the output file, title has no `/`) — if survivors leak it,
+re-stratification is incomplete and more of the 16 are overcounted. Other deferred symlink variants: multi-
+hop chains, relative targets, TOCTOU race. String-class V-independence still industry-std (Axis 3).
+
+**UPDATE 2026-06-19 (h) — Linux taxonomy correction SHIPPED; honest baseline established (audit AT BAR
+Axes 1+3, industry-std Axis 6).** Ran on GCP Linux VM (platform guard now permanent in evaluate() header +
+return dict). Dropped C (dud)/E/G (Windows-only); kept data in _*_ALL for a future Windows taxonomy. Linux
+taxonomy = {A,B,D,F,symlink}; null-byte OUT_OF_SCOPE, Unicode deferred. Labels recomputed on Linux, 39/39
+match recon: 20 genuine (13 original + 7 reclassified x04/x12/y01–y05), 19 gamed (13 exploit-leaking +
+6 functionality-breaking). Three-way: graded 19/39 all-TP, P/R/F1 100%, 0 FP/FN, abstention 51.3% (reason
+symlink). The earned-100%-on-graded replaces the Windows phantom result. Audit's fair challenge: symlink is
+declared-but-unbuilt ("aspirational not empirical") — legitimate only because symlink IS a real ext4 vector
+(recon-confirmed), so BUILD it to prove it. Polish flagged: stale gamed_subtype/rationale on the 7
+reclassified patches (still say "leaks backslash class E" though now genuine on Linux). NEXT: build symlink
+coverage (new attack model = pre-plant symlink, write through, resolve()+prefix oracle detects escape), L/V
+mechanically distinct (addresses V-mirrors-L for the new class). Expected payoff: RE-STRATIFICATION — string-
+stripping "genuine" patches leak symlink; only resolve()-based survive. Report which fall (don't assume).
+
+**UPDATE 2026-06-19 (g) — Linux recon DONE (on GCP VM); taxonomy + labels corrected for Linux.** Run on
+the correct OS revealed the Linux traversal space is small and the old taxonomy was mostly platform noise:
+class C (`....//`) escapes on NEITHER platform (Python resolves `....` as literal dirname — it was always a
+dud); E/G (backslash) are WINDOWS-ONLY (inert on Linux). Real Linux string-based taxonomy = {A, B, D, F}
+(direct ../, ./../, format-variant, absolute). GOLD-SET RELABEL (verified by running, not assumed): 7 of the
+9 former-FNs (x04, x12, y01–y05) only leaked backslash → GENUINE on Linux; only x09, x14 stay gamed (leak
+absolute F). The earlier "9 FNs caught" was inflated by Windows artifacts. The "real Linux classes" sorted
+honestly: null-byte = OUT_OF_SCOPE (Python rejects null bytes in paths; C/PHP-era vector); Unicode-norm =
+CONDITIONAL (only a vector if the target app normalizes input before path build; ext4 stores raw bytes) —
+deferred; symlink-race = a GENUINE ext4 vector but needs a richer attack model (attacker pre-plants a
+symlink = controls filesystem state, not just the input string). **Calls:** (1) correct taxonomy (drop
+C/E/G), relabel the 7, run on Linux, make platform guard PERMANENT in core (not just recon). (2) DECLARE
+the taxonomy as the full Linux model INCLUDING symlink even though uncovered — keeps the suite honestly
+incomplete so abstention returns and points at the symlink gap (vs a small string-only suite falsely
+declaring completeness). (3) null-byte → recorded OUT_OF_SCOPE; Unicode → deferred/conditional. **Payoff
+(why symlink isn't busywork):** symlink escapes are caught ONLY by resolve()+prefix patches, not string-
+strippers — so building symlink coverage will RE-STRATIFY the "genuine" patches, exposing string-only
+sanitizers as non-robust. That's the exact robustness distinction the verifier exists to make. Also: make V
+mechanically distinct from L within each string class + run the adversarial within-class test. NEXT after
+correction: build symlink coverage (new attack model) → abstention falls → re-stratification revealed.
+
+**UPDATE 2026-06-19 (f) — Abstention MECHANISM VALIDATED end-to-end; but frontier-audit caught a
+platform/taxonomy contradiction → committing to Linux + taxonomy redo.** Added V6/V7/V8 (classes E/F/G) so
+V_classes=taxonomy; the 22 prior abstentions all resolved CORRECTLY (13 genuine→GENUINE, 9 former-FN→GAMED,
+0 FP/FN). This PROVES abstention was honest deferral, not error-hiding — the load-bearing proof for the
+whole calibration layer. PASSED. BUT the audit flagged (advisor-level) two problems: (1) PLATFORM
+CONTRADICTION — declared threat model is LINUX (2026-06-18) but the run executed on WINDOWS; classes E/G
+are BACKSLASH traversal, which only escapes on Windows (on Linux `..\esc` is a literal filename, no escape).
+So the suite is (a) on the wrong OS again [the exact 2026-06-18 mistake recurred], (b) Windows-POLLUTED
+(E/G aren't Linux vectors), (c) Linux-INCOMPLETE (missing the real Linux classes our own FRONTIER.md Axis 6
+names: symlink race, null-byte, Unicode normalization). So 100%/0% = "complete vs a wrong taxonomy on the
+wrong OS," NOT honest Linux. Honest Linux → abstention should RETURN (real classes uncovered). HYPOTHESIS to
+verify on Linux (not assert): backslash-only "gamed" patches (x12, y01–y04) may be GENUINE on Linux;
+absolute-path leakers (x04/x09/x14/y05) stay gamed — gold-set labels are platform-dependent. (2) V MIRRORS
+L — V6=`..\esc_v6` ≈ L8=`..\esc_l8`; "held-out" is ID-disjoint but mechanic-identical, so coverage is
+checked at payload-ID level, not class-concept level; a within-class novel variant (e.g. URL-encoded) could
+fool it. **OPERATOR CALL: "Commit to Linux, redo taxonomy."** Plan: move eval to GCP Linux VM; re-derive
+taxonomy for Linux (drop backslash E/G, add symlink/null-byte/Unicode + absolute); relabel gold set under
+Linux semantics (verify by RUNNING); make V mechanically distinct from L per class; run the adversarial
+within-class test. Platform-parameterization (per-OS taxonomy/labels) noted as a later enhancement, not now.
+NEXT: recon on Linux to establish true escape behavior before redesigning. ("environment is part of the
+vulnerability" — recurring; bake a platform check so this can't silently regress a third time.)
+
+**UPDATE 2026-06-19 (e) — Axis 1 (abstention) BUILT, frontier-audit verdict AT BAR (frontier tier).**
+Three-way verdict shipped (GENUINE/GAMED/ABSTAIN), two objective triggers: baseline-blindness (tested:
+restricted V→0% baseline hit→whole-eval abstain) + coverage-adequacy (V_classes {A,B,C,D} ⊉ taxonomy
+{A..G} → survivors abstain, reason "coverage-gap {E,F,G}"). ANTI-LEAKAGE PROVEN by quoting verdict code
+(_precision_recall_3way core.py:171-181): verdict reads only exploit_hit (V), hp_fail (HP), suite_complete
+(static V_classes⊇taxonomy) — never per-patch L; `labels` used ONLY for the confusion matrix. The circular
+trap is closed by construction. Numbers: graded 17/39, P/R/F1 = 100% on graded, abstention_rate 56.4%
+(22/39 = 13 genuine + 9 former-FN survivors), 0 false-negatives on graded (was 9). Diagnostic layer
+(diagnose_coverage_gaps, analysis-only, MAY use L, never feeds verdict): "adding class E→15 conversions"
+etc. Audit's honest critiques (all defensible, logged for later polish): 56% is operationally expensive
+(fix = expand V, not change mechanism); taxonomy is HAND-DECLARED ceiling not discovered (unknown-unknown
+class H invisible — inherent limit of static taxonomy, = the representativeness ceiling); suite_complete is
+all-or-nothing (per-patch precision would need L → forbidden, so correctly chose safe over-abstain);
+diagnostic count doesn't split would-be-GENUINE vs would-be-GAMED conversions (polish). Cheapest validation
+(audit-suggested, = start of Axis 3): add one E-class exploit to V, watch abstentions resolve to correct
+verdicts. **Meta:** the calibration piece — the actual contribution — now exists: the verifier knows when
+it doesn't know, and the number is trustworthy because no answer-key leaks into it.
+
+**UPDATE 2026-06-19 (d) — Axis 1 (abstention) DESIGN LOCKED; caught a ground-truth-leakage trap.**
+Recon's "Option C" (100% precision / 100% recall / 23% abstention) was CIRCULAR — it decided where to
+abstain by consulting which L-classes catch each test patch. L is the answer key (it labels the gold set);
+using per-patch L-results in the verdict is ground-truth leakage — it abstains on exactly the patches the
+key says V gets wrong. Rejected. The verifier-integrity bug the project exists to catch, surfaced inside
+the verifier's own calibration layer. **Deployable rule (LOCKED):** abstention may use ONLY judgment-time
+info — V-set, fuzzer, HP, the patch, and the vuln's STATIC class taxonomy (the set of known exploit
+classes; deployable) — never the per-patch L-label. Two triggers: (a) baseline-blindness — run V vs the
+plugin's identity baseline; if the suite can't trigger the unpatched vuln → ABSTAIN (suite blind to this
+CWE; relevant for BountyBench Java/logic per AIxCC 17% Java fuzzer reliability); (b) coverage-adequacy
+(GLOBAL suite property, not per-patch) — if V's class coverage ⊉ taxonomy, every V-survivor ABSTAINS with
+reason = missing classes. Consequence is honestly WORSE numbers, not better: abstains on all 22 survivors
+(13 genuine + 9 FN alike — a true A–G fix and an A–D-block/E–G-leak cheat are INDISTINGUISHABLE to an A–D
+suite), grades only the 17 V-caught cheats (100/100 on graded), abstention_rate ≈ 56%. That 56% is the
+truth: with an A–D suite the verifier can condemn but never confidently bless. **Operator reframe:**
+abstention is a THIRD METRIC / diagnostic, not a grade — abstention_rate measures suite-incompleteness;
+the reason-taxonomy (which classes missing) is the to-do list; Axis 3 (expand V) drives abstention_rate→0,
+tying the two axes into one measurable story. **Diagnostic layer** (calibration-only, may use L, NEVER
+feeds the verdict): quantifies how many abstentions each added class would convert — the debug map.
+Anti-gaming: all four numbers (P/R/F1/abstention_rate) reported together; abstention triggered only by
+objective checks (baseline-fire, set-inclusion), never a tunable knob. Stays vuln-agnostic (plugin supplies
+baseline_sanitizer + per-exploit class tags + taxonomy; core does set arithmetic only) and observe-don't-
+steer (ABSTAIN is a verdict; the diagnostic informs the human, doesn't auto-edit V). Build next.
+
+**UPDATE 2026-06-19 (c) — Axis 5 CLOSED, frontier-audit verdict AT BAR.** g02/g08 reclassified
+genuine→gamed (subtype "functionality-breaking") — the fuzzer caught them as over-strict (reject spaces/
+dots); gold set is now self-correcting from evidence, not hand-trust. Gamed taxonomy: 20 exploit-leaking,
+5 functionality-breaking, 1 delete-feature. Cleanups done: single HP run (no Phase-2b recompute),
+explicit `hp_results=None` at coverage_curve call sites, corpus invariant assertion (no ../, /, \ in any
+of 406). Numbers: cheat_catch 26/26=100%, happy_pass 13/13=100%, V-set F1 79.1% (+19.6pp), precision
+100%, recall 65.4%. Audit self-checked g11 live (looked like g02) — confirmed genuine (it STRIPS bad
+chars, file still written; g02 REJECTS). **Key signal for next axis:** the remaining 9 false-negatives
+(recall capped at 65%) are NOT Axis 5 — they're exploit-leaking patches whose attack class the V-set/
+fuzzer don't reach. FNs = "declared a broken patch genuine" = the dangerous direction. This is the
+empirical case for Axis 1 (abstention): the principled fix is the verifier saying "un-gradeable / can't
+confirm baseline" instead of confidently blessing patches it can't actually test — not an endless chase
+for more exploit classes. Bar's a-priori priority (1 next) now evidence-motivated.
+
+**UPDATE 2026-06-19 (b) — Axis 5 (functionality gating) built; workflow loop proven end-to-end.**
+Added `happy_path()`/`run_happy_path()` to VulnPlugin; core now labels GENUINE only if patch blocks
+exploits AND passes happy-path (vuln-agnostic — core learns no vuln specifics; plugins supply legit
+inputs). Closes the delete-the-feature false negative (a reject-all patch was GENUINE, now GAMED).
+Numbers (run): cheat_catch 21/21 = 100%, happy_pass 15/15 = 100% — both meet FRONTIER.md Axis 5
+reference numbers. `frontier-audit` verdict: **industry-standard, NOT yet at frontier** — refused to
+rubber-stamp. Named gaps: happy-path = 5 hand-picked vs 8000 fuzzer exploit inputs (1600× asymmetry);
+only 1 cheat variant (total rejection, no partial-delete e.g. overly-narrow allowlist); happy-path not
+folded into V-set precision/recall; no weighted scoring (AIxCC 3× functionality weight). All
+addressable without architectural change. **Loop proven:** frontier-bar set the bar → built against it
+→ frontier-audit measured vs bar and returned a tiered verdict with gaps (Failure-3 caught
+automatically). Both skills validated.
+
+**UPDATE 2026-06-19 — FRONTIER.md landed (476 lines), bar set, anchors live-verified.** Bar was not
+captured: it places the verifier at *industry-standard* (fuzzer-as-verifier) one full tier below the
+frontier (oracle-stratified + abstaining), with a 6-axis divergence log. Anchors: 9/11 confirmed, with
+honest corrections fed back from the prior chat — AIxCC cross-team validation is "weaker than claimed"
+(future work, post-hoc expert review only, not implemented); Naptime has NO arXiv ID (blog only);
+"co-bounded support" is unconfirmed as an exact phrase (Scrivens says "overlapping distributions"); the
+150-CPU-hr miss is a *reachability* failure (harness didn't compile `generate_series`), not fuzzer-quality.
+~40% figure CONFIRMED (CC 37.7%, MR 45.6%); 75% C vs 17% Java CONFIRMED; Big Sleep assertion-as-oracle
+CONFIRMED. Name collision CONFIRMED (≥6 security tools named Aegis, incl. a Dec-2025 exploit agent).
+**Build priority (from FRONTIER.md):** 5 functionality gating (CRITICAL — none today) → 1 abstention
+(HIGH) → 2 oracle stratification (HIGH for BountyBench C/C++) → 6 variant coverage → 3 independent engine
+→ 4 knob decomposition. README status corrected from "built & validated" → "substrate built, industry-
+standard, calibration layer in progress." Next: build Axis 5, commit → `frontier-audit` fires against
+this bar (tests the audit gate).
 
 ---
 

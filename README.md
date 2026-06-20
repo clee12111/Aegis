@@ -2,7 +2,7 @@
 
 **A security research agent that finds and exploits real software vulnerabilities — paired with a deterministic verifier that scores whether the result is *actually real*, not just whether a test passed.**
 
-> **Status:** Act II (Self-test) — verifier built and validated (vuln-agnostic, property-oracle + fuzzing). See [writeups/act2-verifier.md](writeups/act2-verifier.md). Active research project.
+> **Status:** Act II (Self-test). Vuln-agnostic verifier built and validated: behavioral oracle + held-out/fuzzed exploits + functionality gating + **calibrated abstention** (it returns "un-gradeable" rather than a false verdict, validated as honest deferral) + a measured precision/recall on a labeled gold set. **Proven transferable across two CWE families (path traversal + command injection) with zero core changes** — and in the process it caught two textbook "correct" fixes (`normpath`, `shlex.quote`) as only partially correct. Writeups: [transferability](writeups/act2-transferability.md) · [how it was built](writeups/act2-verifier.md) · bar: [FRONTIER.md](FRONTIER.md). Next: real BountyBench CVEs vs published baselines. Active research project.
 
 ---
 
@@ -46,6 +46,49 @@ Two-track evaluation
   |-- Verifier integrity: precision/recall on a labeled gold set
 ```
 
+## How the verifier works
+
+The verifier is two measurement layers stacked. **Layer 1** judges a patch (genuine or gamed). **Layer 2** judges the verifier itself — how often *it* is right — which is the part the field doesn't publish.
+
+```mermaid
+flowchart TB
+  PATCH["Candidate patch<br/>(claims to fix the vuln)"]
+
+  subgraph PLUGIN["Per-vuln plugin — swappable, vuln-specific"]
+    EF["Exploit family"]
+    HP["Legitimate inputs<br/>(happy-path)"]
+    OR["Behavioral oracle<br/>did the bytes actually escape?"]
+  end
+
+  subgraph CORE["Vuln-agnostic core — knows no vuln specifics"]
+    LSET["L set — labeling<br/>establishes ground truth"]
+    VSET["V set — held out<br/>+ fuzzer (~8k variants)"]
+    GATE{"Blocks held-out exploits<br/>AND feature still works?"}
+  end
+
+  PATCH --> CORE
+  EF --> LSET
+  EF --> VSET
+  OR --> GATE
+  LSET --> GATE
+  VSET --> GATE
+  HP --> GATE
+  GATE -->|yes| GEN["GENUINE"]
+  GATE -->|"no — exploit leaks<br/>OR feature broken"| GAM["GAMED"]
+```
+
+Two signals decide the verdict: the patch must block a **held-out** exploit family it never saw (the L/V split + fuzzer catch patches that merely memorized the one known exploit), *and* it must keep legitimate inputs working (this catches the "fix" that just deletes the feature). The oracle is deterministic — it checks real behavior (did the bytes escape the directory?), not whether a test went green.
+
+```mermaid
+flowchart LR
+  GOLD["Gold set<br/>hand-labeled genuine / gamed"] --> VERIF["Verifier<br/>(Layer 1)"]
+  VERIF --> PREDS["Predicted labels"]
+  PREDS --> PRREC["Precision / Recall<br/>how often the verifier itself is right"]
+  PRREC --> LIMITS["Reported with its limits —<br/>bounded by oracle visibility<br/>+ fuzzer reach"]
+```
+
+The honest part: the verifier is a *characterized approximation*, never absolute ground truth. It's bounded forever by what its oracle can **see** (a bug with no sanitizer is invisible) and what its fuzzer can **reach** (a path never exercised is never tested). It can even be more correct than its own labels — the fuzzer has flagged hand-labeled "genuine" patches that actually break legitimate inputs. So the claim is never "this verifier is correct," but "here is its measured precision/recall, and here is exactly where its coverage ends."
+
 ## Evaluation
 
 - **Capability** — Detect / Exploit / Patch on BountyBench (25 real systems, 40 bounties), reported against the published agent baselines.
@@ -57,7 +100,7 @@ Two-track evaluation
 | Act | Focus | Status |
 |---|---|---|
 | **I — Foundations** | Domain ramp; environment; understand 3 real CVEs cold | Complete — environment proven end-to-end on GCP; CVE study complete |
-| **II — Self-test** | Attack own systems; build + calibrate the verifier | **In progress** — verifier built & validated (property + fuzzing, vuln-agnostic); scaffold delta next |
+| **II — Self-test** | Attack own systems; build + calibrate the verifier | **In progress** — verifier built & calibrated (behavioral oracle + fuzzing + functionality gating + validated abstention + measured precision/recall); proven transferable across two CWE families with zero core changes. Next: validate on real CVEs |
 | **III — Benchmark** | BountyBench + ZeroDayBench vs. published baselines | Planned |
 | **IV — Generalization** | Arbitrary open-source repos; optional RL loop | Planned |
 
