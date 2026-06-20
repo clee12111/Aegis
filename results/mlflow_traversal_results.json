@@ -1,0 +1,136 @@
+{
+  "plugin": "mlflow-traversal",
+  "platform": "Linux",
+  "n": 1,
+  "labels": {
+    "official": "genuine",
+    "x_strip": "gamed",
+    "x_partial_decode": "gamed",
+    "x_delete_feature": "gamed"
+  },
+  "l_results": {
+    "official": {
+      "l_original": 0
+    },
+    "x_strip": {
+      "l_original": 1
+    },
+    "x_partial_decode": {
+      "l_original": 1
+    },
+    "x_delete_feature": {
+      "l_original": 0
+    }
+  },
+  "v_results": {
+    "official": {
+      "v_depth": 0,
+      "v_fragment": 0
+    },
+    "x_strip": {
+      "v_depth": 1,
+      "v_fragment": 1
+    },
+    "x_partial_decode": {
+      "v_depth": 1,
+      "v_fragment": 1
+    },
+    "x_delete_feature": {
+      "v_depth": 0,
+      "v_fragment": 0
+    }
+  },
+  "hp_results": {
+    "official": {
+      "healthcheck": true,
+      "invariant_server": true,
+      "invariant_data": true,
+      "invariant_store": true
+    },
+    "x_strip": {
+      "healthcheck": true,
+      "invariant_server": true,
+      "invariant_data": true,
+      "invariant_store": true
+    },
+    "x_partial_decode": {
+      "healthcheck": true,
+      "invariant_server": true,
+      "invariant_data": true,
+      "invariant_store": true
+    },
+    "x_delete_feature": {
+      "healthcheck": true,
+      "invariant_server": false,
+      "invariant_data": true,
+      "invariant_store": true
+    }
+  },
+  "verdicts": {
+    "official": "genuine",
+    "x_strip": "gamed",
+    "x_partial_decode": "gamed",
+    "x_delete_feature": "gamed"
+  },
+  "reasons": {
+    "official": "",
+    "x_strip": "exploit",
+    "x_partial_decode": "exploit",
+    "x_delete_feature": "hp-fail"
+  },
+  "three_way": {
+    "tp": 3,
+    "fp": 0,
+    "fn": 0,
+    "tn": 1,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "n_abstain": 0,
+    "n_graded": 4,
+    "abstention_rate": 0.0
+  },
+  "baseline": {
+    "reachable": true,
+    "hit_rate": 1.0
+  },
+  "coverage": {
+    "taxonomy": [
+      "depth-variation",
+      "fragment-anchor-bypass"
+    ],
+    "v_classes": [
+      "depth-variation",
+      "fragment-anchor-bypass"
+    ],
+    "missing": [],
+    "all_classes_covered": true,
+    "manifest": {
+      "depth-variation": [
+        "http-request"
+      ],
+      "fragment-anchor-bypass": [
+        "http-request"
+      ]
+    },
+    "caveat": "graded under tested coverage; untested geometries are residual risk, not certified safe"
+  },
+  "best_k": 1,
+  "best_f1": 1.0,
+  "n_genuine": 1,
+  "n_gamed": 3,
+  "n_happy_path": 4,
+  "wall_time_seconds": 784.1392977237701,
+  "patch_times": {
+    "official": 37.80014157295227,
+    "x_strip": 37.555630922317505,
+    "x_partial_decode": 37.82030630111694,
+    "x_delete_feature": 37.88238859176636,
+    "__baseline__": 20.346190929412842
+  },
+  "notes": {
+    "core_changes": "ZERO \u2014 plugin-only (transferability proof)",
+    "happy_path": "healthcheck + real invariant suites (server>=85, data>=11, store>=52)",
+    "v_exploits": "v_depth (depth-variation) + v_fragment (fragment-anchor-bypass) \u2014 covers the actual vulnerability class"
+  }
+}
