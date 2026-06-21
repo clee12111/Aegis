@@ -7,6 +7,41 @@ Format: date, decision, why, precludes.
 
 ---
 
+### 2026-06-21 — BAR SET: Agent / retrieval scaffold (FRONTIER.md Part II)
+
+**Decision:** Bar set for the Aegis agent — the retrieval scaffold + model loop
+that generates Detect/Exploit/Patch attempts, scored by our verifier against
+BountyBench published baselines. Written as FRONTIER.md Part II (separate from
+the existing verifier bar in Part I). Independent research session.
+
+**Axes tiered (6 consequence-dense):**
+1. Localization scaffold quality — median (raw file dump) → industry (CodeQL-guided)
+   → frontier (CPG + taint-flow, codebadger/LLMxCPG). Aegis targets frontier.
+2. Detection — 5.0% (Claude Code) → 12.5% (Codex o3-high) → ~14% (ZeroDayBench
+   frontier). Bar: ≥12.5% on BountyBench; stretch ≥20%.
+3. Exploit — 17.5–42.5% → 47.5–57.5% → 67.5% (Custom C3.7 Thinking). Bar: ≥57.5%.
+4. Patch — 87.5% headline BUT 38–46% semantically incorrect (AIxCC). Bar: report
+   both BountyBench-compatible AND verifier-confirmed genuine rate.
+5. Scaffold-delta isolation — model held constant, ≥2 providers, no hardcoded strings.
+6. Variance — 3 attempts/task, mean + CI, headline delta ≥5pp.
+
+**Load-bearing anchors:** BountyBench (arXiv:2505.15216) for all numeric baselines;
+ZeroDayBench (arXiv:2603.02297) for detection ceiling (zero-day→CWE delta ~20pp =
+max recoverable by localization); AIxCC SoK (arXiv:2602.07666) for CRS architectures
+and semantic incorrectness rates; codebadger/LLMxCPG for CPG-guided localization
+reference.
+
+**Key correction:** Claude Code Detect is 5.0% (BountyBench Table 1), not ~8% as
+cited in CLAUDE.md. Must correct before Act III reporting.
+
+**State-vs-bar gap:** Nothing built yet. The bar is set BEFORE building so it can't
+be set to match what was built.
+
+**Precludes:** Claiming detection results without scaffold-delta isolation. Reporting
+Patch scores without verifier-confirmed genuine rate. Headline deltas < 5pp.
+
+---
+
 ### 2026-06-21 — LibreChat plugin: axes 3+6 closed, reliability hardened, optimized
 
 **Decision:** LibreChat upload-traversal verifier (CVE-2024-11170) firmed up on all

@@ -87,7 +87,7 @@ Two-track evaluation
 Same pattern as Meridian vs. ZeroEntropy:
 
 - **Published baseline:** BountyBench numbers for Claude Code bare:
-  ~8% Detect, 57.5% Exploit, 87.5% Patch. Don't need to reproduce — it's in the paper.
+  5.0% Detect, 57.5% Exploit, 87.5% Patch. Don't need to reproduce — it's in the paper.
 - **Your system:** same model via API + retrieval scaffold. Run same tasks.
 - **The claim:** same model, better localization scaffold, here's the delta.
 
@@ -102,10 +102,10 @@ BountyBench (NeurIPS 2025), 10 agents, 3 attempts, 40 tasks:
 | Agent | Detect | Exploit | Patch |
 |---|---|---|---|
 | Codex CLI o3-high | 12.5% | 47.5% | 90% |
-| Codex CLI o4-mini | ~12% | 32.5% | 90% |
-| Claude Code | ~8% | 57.5% | 87.5% |
-| Custom Claude 3.7 Thinking | ~8% | 67.5% | 60% |
-| Custom others | ~5% | 17.5–50% | 25–55% |
+| Codex CLI o4-mini | 5.0% | 32.5% | 90% |
+| Claude Code | 5.0% | 57.5% | 87.5% |
+| Custom Claude 3.7 Thinking | 5.0% | 67.5% | 60% |
+| Custom others | 0–2.5% | 17.5–55% | 25–50% |
 
 ZeroDayBench (2026): frontier models not yet capable of autonomously solving
 22 novel critical vulnerabilities. Detection is the hardest open problem.

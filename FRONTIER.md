@@ -1,4 +1,12 @@
-# FRONTIER.md — Aegis Verifier (patch-genuineness judgment)
+# FRONTIER.md — Aegis
+
+Two parts: the verifier (Part I, set 2026-06-19) and the agent/retrieval
+scaffold (Part II, set 2026-06-21). Each is independently auditable.
+
+---
+---
+
+# Part I — Verifier (patch-genuineness judgment)
 
 Set: 2026-06-19
 Scope: deterministic verification that a security patch GENUINELY closes a
@@ -474,3 +482,396 @@ a rename. This is a real problem for searchability and citation.
 | "Aegis" name taken | **CONFIRMED** | ≥6 security tools/papers named Aegis, including direct-overlap exploit agent (Dec 2025). |
 | "co-bounded support" terminology | **UNCONFIRMED as exact phrase** | Concept confirmed in Scrivens (arXiv:2603.28650). Paper uses "overlapping distributions", not "co-bounded support." |
 | Naptime arXiv ID | **NONE EXISTS** | Blog post only (Project Zero, Jun 2024). No arXiv paper found. |
+
+---
+---
+
+# Part II — The Agent / Retrieval Scaffold
+
+Set: 2026-06-21
+Scope: inference-time security agent that Detects, Exploits, and Patches
+vulnerabilities in real codebases. The scaffold (code-graph-aware retrieval,
+taint-flow tracing, multi-hop chain ranking) is the contribution; the
+underlying model is held constant as the commodity baseline. The controlled delta is C-Agent-bare vs C-Agent+scaffold, same model;
+published Claude Code / Codex CLI numbers are external context, not
+our reproducible baseline. C-Agent + Claude 3.7 Thinking (BountyBench
+Table 1): 5.0% Detect / 67.5% Exploit / 60% Patch.
+
+`bar confidence: best-published` — BountyBench (NeurIPS 2025) and
+ZeroDayBench (Mar 2026) provide firm numeric baselines with named agents.
+Localization/retrieval-for-security is a rapidly moving field (codebadger,
+LLMxCPG, IRIS, SemTaint all published 2025–2026) but no system has been
+benchmarked on BountyBench with scaffold-delta isolation. The bar is set
+against published numbers; internal/proprietary systems (Google Big Sleep,
+undisclosed AIxCC finalist pipelines) may exceed it.
+
+**Inference-time throughout Acts I–III.** All BountyBench agents, all
+ZeroDayBench evaluations, all AIxCC CRSs are inference-time (frozen
+weights, context accumulates within a single run). RL training is a
+deferred Act IV option. This bar is set for inference-time agents only.
+
+---
+
+## Approach landscape — families of vulnerability localization
+
+| # | Family | How it works | Strength | Failure mode | Status |
+|---|---|---|---|---|---|
+| 1 | **Raw file dump** | Concatenate source files into model context. Navigate with grep/cat. | Zero infrastructure. Works for small repos. | Context overflow on real codebases. No inter-procedural signal. ~5% Detect (BountyBench Claude Code). | **Median.** All BountyBench agents use this. |
+| 2 | **Embedding/RAG retrieval** | Embed code chunks, retrieve by cosine similarity to vulnerability patterns. | Standard infra (vector DB). Works for "find code similar to this pattern." | Safe code and vulnerable code embed nearly identically — no differential signal. Retrieval recall drops to near-random on security-relevant chunks. | **Median for security** (industry-standard for general code Q&A). Vul-RAG (Jun 2024) partially addresses this by retrieving from a structured vuln knowledge base instead of raw code. |
+| 3 | **Static-analysis-guided** | Use CodeQL / Semgrep / Infer to identify candidate locations, feed matches to LLM for reasoning. | Deterministic, low FP on well-written rules. 4/7 AIxCC finalists use SAST signals. | Rule coverage gap — CodeQL catches what it has rules for. Novel vulnerability patterns invisible. IRIS (ICLR 2024) shows LLM+CodeQL doubles detection (27→55 vulns), confirming the gap is real. | **Industry-standard.** AIxCC CRSs + IRIS + QLCoder (ICLR 2025). |
+| 4 | **Code-graph + taint-flow + entry-point detection** | Build CPG/call graph (Joern, Tree-sitter+NetworkX), trace data flow from sources to sinks, rank multi-hop taint chains, hand model ONLY the ranked suspicious paths. | Pre-computes inter-procedural chains deterministically. Model sees ranked paths, not raw code. LLMxCPG (USENIX Security 2025): CPG slicing reduces code by 67–91% with 15–40% F1 improvement. | Requires per-language CPG infrastructure. Taint spec generation is fragile. Call-graph completeness on dynamic languages (Python, JS) is fundamentally limited. | **Frontier for code-analysis-based localization.** codebadger (Mar 2026) is the production-grade reference; LLMxCPG is the benchmark reference. |
+| 5 | **Seed-commit variant analysis** | Given a known bug/patch, explore the code neighborhood for structurally similar issues. | Bypasses the cold-start problem entirely — the seed IS the retrieval signal. Big Sleep found a SQLite bug that 150 CPU-hrs of fuzzing missed. | Not zero-day detection — requires a seed. Finds variants of known bugs, not novel classes. | **Frontier for variant discovery.** Big Sleep (Google Project Zero, Oct 2024 + Jul 2025). |
+| 6 | **Ensemble (fuzzing + LLM + symbolic)** | Run fuzzing, LLM-guided input generation, and (optionally) symbolic execution in parallel. PoV oracle confirms discovery. | Highest published capability. AIxCC: fuzzing found 54% of C bugs; LLM reasoning found 15/22 non-fuzzing-solvable delta-mode bugs. | Requires per-target harness/build infrastructure. Fuzzing-biased toward C; only 17% of Java CPVs solvable. | **Frontier for capability.** AIxCC finalist CRSs (Atlantis, Buttercup, RoboDuck). |
+
+**What Aegis would NOT consider:**
+- Full symbolic execution as primary (doesn't scale to real repos; only
+  Atlantis explored it, and only for directed fuzzing)
+- Custom model training / fine-tuning (inference-time constraint, Acts I–III)
+- Fuzzing as the primary localization (requires per-target harness setup;
+  we're code-analysis-first; fuzzing is a potential complement, not the core)
+- Pure embedding retrieval for security (no differential signal for
+  vulnerability-relevant code; Vul-RAG's structured knowledge base is the
+  exception, not the rule)
+
+**Planned approach:** Family 4 (code-graph + taint-flow) as the primary
+scaffold, with Family 3 (static analysis signal from CodeQL/Semgrep) as
+a complement. Model sees ranked suspicious paths, not raw code. The claim
+is scaffold-delta: same model, better localization → improved Detect/Exploit.
+
+---
+
+## Consequence map — which axes cost real units
+
+| # | Axis | Consequence of median | Real units at risk | Verdict |
+|---|---|---|---|---|
+| 1 | **Localization scaffold quality** | Model navigates raw code reactively (grep/cat). Multi-hop chains invisible. | Delta claim is the entire thesis — no delta, no contribution | **CRITICAL** |
+| 2 | **Detection capability** | ~5% Detect (BountyBench). Novel vulns invisible. | Headline number for security teams; the open problem | **CRITICAL** |
+| 3 | **Exploit generation** | ~57.5% Exploit (BountyBench, Claude Code). Exploits unverified. | Without verifier: exploit claims are unchecked | **HIGH** |
+| 4 | **Patch quality (genuine-vs-gamed)** | ~87.5% Patch (BountyBench) but 38–46% semantic incorrectness (AIxCC MR/CC). | Ship broken patches → real user harm | **HIGH** |
+| 5 | **Scaffold-delta isolation** | Model capability conflated with scaffold contribution. | Can't distinguish "better model" from "better scaffold" | **CRITICAL** |
+| 6 | **Variance discipline** | Report best-of-3 as the number. Sub-noise deltas published. | Unreproducible claims | **HIGH** |
+| 7 | **Inference-time constraint** | N/A (constraint, not axis) | RL is Act IV | **Structural** |
+
+---
+
+## Axis 1: Localization scaffold quality — THE contribution
+
+### Three tiers
+
+**Median:** Raw file dump + reactive navigation. The model reads files
+with cat/grep/ls and reasons about what it sees. All BountyBench agents
+and ZeroDayBench evaluations operate this way. No pre-computed structure.
+No inter-procedural analysis.
+
+**Industry-standard:** Static analysis signal (CodeQL/Semgrep) identifies
+candidate locations; LLM reasons over matches. IRIS (ICLR 2024): CodeQL
+alone 27 vulns → IRIS+GPT-4 55 vulns (+103%). QLCoder (ICLR 2025): LLM
+synthesizes CodeQL queries from CVE metadata, 53.4% correct vs. 10% for
+bare Claude Code. AIxCC: 4/7 finalists feed SAST reports to LLM agents.
+
+**Frontier:** Code Property Graph (CPG) + taint-flow pre-computation +
+LLM reasoning over ranked paths. LLMxCPG (USENIX Security 2025): CPG-based
+slicing reduces code size by 67–91%, 15–40% F1 improvement over baselines.
+codebadger (Mar 2026): MCP server wrapping Joern CPG, gives LLM agent
+queryable access to program slicing, taint tracking, call graph traversal.
+Found previously unreported libtiff buffer overflow; generated correct patch
+for CVE-2025-6021 on first attempt. SemTaint (Jan 2026): multi-agent taint
+specification extraction detected 106/162 vulns previously invisible to
+CodeQL.
+
+### Verified anchors
+
+- **LLMxCPG (arXiv:2507.16585, USENIX Security 2025):** 15–40% F1
+  improvement. CPG slice reduces code 67–91%. `verify` — numbers from
+  abstract; exact benchmark dataset not confirmed against BountyBench tasks.
+- **codebadger (arXiv:2603.24837, Mar 2026):** Joern CPG + MCP server.
+  Found libtiff zero-day + correct libxml2 patch on first attempt.
+  **CONFIRMED** — repo public at github.com/lekssays/codebadger.
+- **IRIS (arXiv:2405.17238, ICLR 2024):** LLM-inferred taint specs →
+  CodeQL. 27→55 vulns (+103%). 4 previously unknown vulns. **CONFIRMED.**
+- **QLCoder (arXiv:2511.08462, ICLR 2025):** LLM synthesizes CodeQL path
+  queries. 53.4% correct (176 CVEs / 111 Java projects) vs. 10% bare
+  Claude Code. **CONFIRMED.**
+- **SemTaint (arXiv:2601.10865, Jan 2026):** Multi-agent taint spec.
+  Detected 106/162 vulns undetectable by CodeQL. 4 novel npm vulns.
+  `verify` — numbers from abstract.
+- **LLMDFA (NeurIPS 2024):** Compilation-free LLM-based dataflow via
+  Tree-sitter CFG. 74.6% precision / 60.2% recall on TaintBench.
+  **CONFIRMED.**
+- **BountyBench agents (arXiv:2505.15216):** No agent uses CPG, taint
+  flow, or structured retrieval. All navigate with grep/cat/ls.
+  **CONFIRMED** — paper §4, verified by research fetch.
+
+### measure:
+
+```bash
+# Scaffold delta = (scaffold+model) - (model alone) on SAME tasks
+# with MODEL HELD CONSTANT (same provider, same checkpoint).
+#
+# Run BountyBench Detect+Exploit tasks:
+#   baseline: model with raw file access (SWE-agent style)
+#   scaffold: model with CPG-ranked paths
+#
+# reference number: Detect delta >= +5pp over bare model
+#   (IRIS shows +103% on CodeQL-augmented detection;
+#    ZeroDayBench zero-day→CWE tier delta is ~20pp;
+#    conservative: +5pp on BountyBench's 40-task set)
+# reference number: Exploit delta >= +10pp over bare model
+#   (BountyBench exploit scores range 17.5%–67.5%;
+#    the scaffold should close some of that spread)
+```
+
+---
+
+## Axis 2: Detection capability
+
+### Three tiers
+
+**Median:** ~5% Detect on BountyBench (Claude Code, Custom Claude 3.7
+Thinking). Zero-shot, no hints, no CWE given. The model reads code and
+tries to find a vulnerability independently.
+
+**Industry-standard:** ~12.5% Detect (Codex CLI o3-high, BountyBench).
+AIxCC parallel fuzzing: 54% CPV discovery (C), 17% (Java). ZeroDayBench
+zero-day tier: 12–14% pass rate across frontier models.
+
+**Frontier:** Seed-commit variant analysis → Big Sleep found a SQLite
+zero-day that 150 CPU-hrs of AFL missed (Oct 2024, repeated Jul 2025
+CVE-2025-6965). codebadger found unreported libtiff overflow via CPG-guided
+exploration. BUT: no system achieves autonomous novel-class zero-day
+detection on unfamiliar codebases. ZeroDayBench (Mar 2026) confirms:
+"frontier LLMs are not yet capable of autonomously solving our tasks."
+
+### Verified anchors
+
+- **BountyBench Detect (arXiv:2505.15216):** Best: Codex CLI o3-high
+  12.5%. Claude Code 5.0%. **CONFIRMED.** Note: CLAUDE.md cites "~8%"
+  for Claude Code — paper says 5.0%. Must correct.
+- **ZeroDayBench zero-day tier (arXiv:2603.02297):** Claude Sonnet 4.5
+  12.8%, GPT-5.2 14.4%, Grok 4.1 12.1%. **CONFIRMED** via research fetch.
+- **ZeroDayBench CWE tier (same paper):** Claude 32.9%, GPT-5.2 32.9%.
+  Delta from zero-day: ~20pp. **CONFIRMED.** This delta is the approximate
+  ceiling for what structured localization (providing CWE-type context) can
+  recover without the full exploit.
+- **Big Sleep (Project Zero blog, Oct 2024):** SQLite stack buffer
+  underflow via variant analysis from seed commit. **CONFIRMED.**
+- **AIxCC parallel fuzzing (arXiv:2602.07666, §7.3):** C: 30/40 (75%),
+  Java: 4/23 (17%). **CONFIRMED.**
+
+### measure:
+
+```bash
+# reference number: Detect >= 12.5% on BountyBench (40 tasks, 3 attempts)
+#   (matches Codex CLI o3-high, current best)
+# stretch: Detect >= 20% (exceeds all published agents)
+#
+# ZeroDayBench: report zero-day tier pass rate. No reference number set —
+#   frontier models achieve 12–14%; beating this would be a genuine
+#   contribution, but 22 tasks with ported vulns is thin sample.
+```
+
+---
+
+## Axis 3: Exploit generation
+
+### Three tiers
+
+**Median:** ~17.5–42.5% Exploit (BountyBench custom agents with weaker
+models: Qwen3 25%, Llama 4 42.5%, o3-high 37.5%).
+
+**Industry-standard:** ~47.5–57.5% Exploit (Codex CLI o3-high 47.5%,
+Claude Code 57.5%). EnIGMA (ICML 2025): stateful debugger access → 3×
+SoTA on CTF tasks (13.5% on NYU CTF, 200 challenges).
+
+**Frontier:** ~67.5% Exploit (Custom Claude 3.7 Sonnet Thinking,
+BountyBench). The gap between this and Claude Code (57.5%) suggests
+thinking/reasoning features help exploitation more than coding fluency.
+
+### Verified anchors
+
+- **BountyBench Exploit (arXiv:2505.15216):** Custom C3.7 Thinking 67.5%,
+  Claude Code 57.5%, GPT-4.1 55.0%. **CONFIRMED.**
+- **EnIGMA (ICML 2025):** Stateful tools → 3× SoTA on CTF. `verify` —
+  number cited from training recall; 13.5% on NYU CTF specifically.
+
+### measure:
+
+```bash
+# reference number: Exploit >= 57.5% on BountyBench (40 tasks, 3 attempts)
+#   (matches Claude Code baseline)
+# stretch: Exploit >= 67.5% (matches Custom Claude 3.7 Thinking, best)
+#
+# CRITICAL: exploit success scored by OUR verifier (Part I), not just
+# BountyBench's pass/fail. Report both: BountyBench-compatible score
+# AND verifier-confirmed score. If they diverge, the verifier catches
+# false exploit claims.
+```
+
+---
+
+## Axis 4: Patch quality (genuine-vs-gamed)
+
+### Three tiers
+
+**Median:** ~87.5–90% Patch on BountyBench (Claude Code 87.5%, Codex CLI
+90%). BUT: AIxCC SoK finds 38–46% semantic incorrectness in MR/CC patches
+that pass automated tests. PVBench (Mar 2026): >40% of "correct" patches
+fail deeper validation. The headline Patch number is inflated.
+
+**Industry-standard:** AIxCC top CRS teams: 16–21% semantic incorrectness
+(vs. 38–46% for bare LLM agents). The gap is real quality, not test-suite
+gaming.
+
+**Frontier:** Patch quality verified by a deterministic verifier with
+measured precision/recall (Part I of this document). No published system
+does this. The Aegis verifier IS the frontier on this axis — it was built
+first specifically to make this measurement.
+
+### Verified anchors
+
+- **BountyBench Patch (arXiv:2505.15216):** Claude Code 87.5%, Codex CLI
+  90.0%. **CONFIRMED.**
+- **AIxCC semantic incorrectness (arXiv:2602.07666, §7.4):** MR 45.6%
+  (26/57), CC 37.7% (20/53), top CRS 16–21%. **CONFIRMED.**
+- **PVBench (arXiv:2603.06858, Mar 2026):** >40% of "correct" patches
+  fail deeper PoC+ tests. **CONFIRMED** via landscape notes.
+
+### measure:
+
+```bash
+# reference number: Patch >= 87.5% on BountyBench
+#   (matches Claude Code baseline)
+#
+# CRITICAL: report TWO numbers:
+#   1. BountyBench-compatible Patch score (pass/fail)
+#   2. Verifier-confirmed genuine rate (Part I verifier)
+# The delta between (1) and (2) IS the thesis: the published 87.5% is
+# inflated by gamed patches that the standard test suite doesn't catch.
+#
+# reference number: verifier-confirmed genuine rate < BountyBench Patch
+#   score (the gap IS the finding — a higher verifier score would mean
+#   the verifier adds nothing)
+```
+
+---
+
+## Axis 5: Scaffold-delta isolation
+
+### Three tiers
+
+**Median:** Report raw system numbers without controlling for model.
+"Our system achieves X% Detect" — does not distinguish model capability
+from scaffold contribution.
+
+**Industry-standard:** Ablation study. Run with and without scaffold
+components. IRIS reports CodeQL-alone vs. IRIS+GPT-4. QLCoder reports
+bare Claude Code vs. QLCoder agent. The delta is measured.
+
+**Frontier:** Model held CONSTANT across all runs. Same provider, same
+checkpoint, same temperature/sampling. The scaffold is the only variable.
+Multiple model tiers tested (e.g., Claude Sonnet, GPT-4.1, Gemini) to
+show the scaffold helps across providers, not just one. Provider-agnostic
+interface — no hardcoded model strings in agent logic.
+
+### measure:
+
+```bash
+# reference number: scaffold_detect - baseline_detect >= +5pp
+#   with same model on both sides
+# reference number: delta positive for >= 2 model providers
+#   (same scaffold, different models — shows scaffold generality)
+#
+# Provider-agnostic check: grep -r for hardcoded model names
+#   in agent logic (should find zero)
+```
+
+---
+
+## Axis 6: Variance discipline
+
+### Three tiers
+
+**Median:** Report best-of-N. Cherry-pick the run where the system
+performed best.
+
+**Industry-standard:** Report average across fixed N attempts.
+BountyBench uses 3 attempts per task. Report mean or max-of-3
+(BountyBench uses max-of-3 for headline; mean for analysis).
+
+**Frontier:** Report mean AND variance. Flag results within the noise
+floor (BountyBench: 40 tasks, 3 attempts → 1 task = 2.5pp; deltas
+< 5pp are within single-task variance). Sub-noise deltas do not go in
+the headline.
+
+### measure:
+
+```bash
+# reference number: 3 attempts per task (matches BountyBench)
+# reference number: report mean score AND 95% CI or std dev
+# reference number: headline delta >= 5pp (noise floor for 40-task set)
+```
+
+---
+
+## Divergence log — planned Aegis scaffold vs frontier tiers
+
+| # | Axis | Planned state | Frontier requires | Gap | Priority |
+|---|---|---|---|---|---|
+| 1 | Localization | Code-graph (Tree-sitter + NetworkX) + taint-flow tracing + entry-point detection | CPG (Joern/codebadger) + LLM-inferred taint specs (IRIS/SemTaint) + ranked path output | Tree-sitter+NetworkX is lighter than Joern CPG but covers fewer edge cases (dynamic dispatch, reflection). May need Joern for Java. | **P0** — build first |
+| 2 | Detection | Scaffold + model vs. bare model, BountyBench tasks | 12.5% (Codex o3-high) is the bar; 20% would be novel | Cold-start problem: no seed commit, no CWE hint. The scaffold must generate its own hypotheses. ZeroDayBench shows ~20pp recoverable from CWE-type context. | **P0** — measure |
+| 3 | Exploit | Scaffold + model + verifier scoring | 57.5–67.5% (BountyBench) | Verifier already built (Part I). Exploit generation is less scaffold-dependent than detection. | **P1** |
+| 4 | Patch | Scaffold + verifier-confirmed genuine rate | 87.5% headline, but verifier-confirmed rate is the real number | The verifier IS the contribution here. Report both numbers; the gap is the finding. | **P1** |
+| 5 | Delta isolation | Provider-agnostic interface, ≥2 models tested | Same model, same checkpoint, scaffold is only variable | Must implement provider abstraction before any benchmark run. No hardcoded model strings. | **P0** — structural |
+| 6 | Variance | 3 attempts/task, mean + CI reported | Same | Straightforward. 40 tasks × 3 attempts = 120 runs per configuration. | **P0** — discipline |
+
+---
+
+## Scope boundary — what this agent CANNOT do
+
+**Out of scope (not attempted in Acts I–III):**
+- Autonomous novel-class zero-day detection on arbitrary unfamiliar repos
+  (ZeroDayBench confirms: frontier models can't yet do this)
+- RL training between episodes (deferred to Act IV)
+- Fuzzing as primary discovery mechanism (requires per-target harness;
+  we're code-analysis-first)
+- Cross-language taint chains (Python↔C, JS↔Rust) — no unified CPG
+  exists; noted as a known detection ceiling
+
+**Honest ceiling on detection:** The scaffold provides structured context
+(ranked suspicious paths) equivalent to ZeroDayBench's "CWE tier" — giving
+the model the TYPE of vulnerability to look for without the exact location.
+The ZeroDayBench delta from zero-day to CWE tier is ~20pp. That is the
+approximate MAXIMUM recoverable by localization alone. Beyond this requires
+either better models or fundamentally different approaches (fuzzing,
+symbolic execution).
+
+---
+
+## Anchor verification summary (Part II)
+
+| Claim | Status | Source |
+|---|---|---|
+| BountyBench Claude Code Detect 5.0% | **CONFIRMED** | Table 1, arXiv:2505.15216. Note: CLAUDE.md incorrectly cites ~8%. |
+| BountyBench Claude Code Exploit 57.5% | **CONFIRMED** | Table 1, arXiv:2505.15216 |
+| BountyBench Claude Code Patch 87.5% | **CONFIRMED** | Table 1, arXiv:2505.15216 |
+| BountyBench Codex o3-high Detect 12.5% | **CONFIRMED** | Table 1, arXiv:2505.15216 |
+| BountyBench Custom C3.7 Thinking Exploit 67.5% | **CONFIRMED** | Table 1, arXiv:2505.15216 |
+| BountyBench 40 tasks, 3 attempts | **CONFIRMED** | §3.2, §4, arXiv:2505.15216 |
+| BountyBench Detect = zero-shot (no hints) | **CONFIRMED** | §2.5, Level 1 "No Info", arXiv:2505.15216 |
+| No BountyBench agent uses CPG/taint/retrieval | **CONFIRMED** | §4, arXiv:2505.15216 — all use grep/cat/ls |
+| ZeroDayBench 22 novel vulns | **CONFIRMED** | arXiv:2603.02297 |
+| ZeroDayBench zero-day tier 12–14% | **CONFIRMED** | Table 2: Claude 12.8%, GPT-5.2 14.4%, Grok 12.1% |
+| ZeroDayBench CWE tier ~33% | **CONFIRMED** | Table 2: Claude 32.9%, GPT-5.2 32.9% |
+| ZeroDayBench zero-day→CWE delta ~20pp | **CONFIRMED** | 32.9% - 12.8% = 20.1pp (Claude) |
+| AIxCC fuzzing 75% C, 17% Java | **CONFIRMED** | §7.3, arXiv:2602.07666 |
+| AIxCC semantic incorrectness MR 45.6%, CC 37.7% | **CONFIRMED** | §7.4, arXiv:2602.07666 |
+| AIxCC top CRS 16–21% semantic incorrectness | **CONFIRMED** | §7.4, arXiv:2602.07666 |
+| AIxCC no team uses taint-flow-as-retrieval | **CONFIRMED** | §6.1–6.2, arXiv:2602.07666. BugBuster uses program slicing (closest). |
+| LLMxCPG 15–40% F1 improvement | `verify` | arXiv:2507.16585, USENIX Security 2025. Numbers from abstract. |
+| codebadger found libtiff zero-day | **CONFIRMED** | arXiv:2603.24837. Repo public. |
+| IRIS CodeQL 27→55 vulns | **CONFIRMED** | arXiv:2405.17238, ICLR 2024 |
+| QLCoder 53.4% vs 10% bare Claude Code | **CONFIRMED** | arXiv:2511.08462, ICLR 2025 |
+| SemTaint 106/162 beyond CodeQL | `verify` | arXiv:2601.10865, Jan 2026. Numbers from abstract. |
+| Big Sleep SQLite zero-day Oct 2024 | **CONFIRMED** | Project Zero blog, Oct 2024 |
+| EnIGMA 13.5% NYU CTF | `verify` | ICML 2025. Number cited from search; not directly fetched. |
+| Grok reward hacking 5.7% traces | **CONFIRMED** | ZeroDayBench §4, arXiv:2603.02297 |
