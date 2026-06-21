@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Ledger gate — model-independent backstop for the WORKFLOW.md "living docs" rule.
+# If a commit changes code but does NOT update DECISION.md, stop and ask.
+#
+# Layering: the WORKFLOW.md rule is the intent; the frontier-audit/bar skills append
+# on their own runs (depends on the skill running); THIS hook depends on nothing but
+# the commit event — it is the floor.
+#
+# Escape hatch (use only for genuinely trivial changes — typo, formatting):
+#   git commit --no-verify
+#
+# Install per clone (Git 2.9+):
+#   git config core.hooksPath scripts/hooks && chmod +x scripts/hooks/pre-commit
+
+set -euo pipefail
+
+# If this repo does not TRACK a DECISION.md, the ledger lives outside git here
+# (lean-project shape, e.g. ledger gitignored) — nothing to enforce. No-op.
+if ! git ls-files --error-unmatch DECISION.md >/dev/null 2>&1; then
+  exit 0
+fi
+
+# Staged additions/copies/modifications/renames (ignore pure deletions).
+staged="$(git diff --cached --name-only --diff-filter=ACMR)"
+[ -z "$staged" ] && exit 0
+
+# Was DECISION.md part of this commit?
+ledger_touched=0
+printf '%s\n' "$staged" | grep -qx "DECISION.md" && ledger_touched=1
+
+# Is any staged file "code" rather than docs/meta? Negative allowlist, so new code
+# file types are caught by default.
+code_changed=0
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  case "$f" in
+    DECISION.md|*.md|.gitignore|LICENSE|LICENSE.*|*.txt|.env.example) : ;;  # docs/meta — ignore
+    *) code_changed=1 ;;
+  esac
+done <<< "$staged"
+
+if [ "$code_changed" -eq 1 ] && [ "$ledger_touched" -eq 0 ]; then
+  echo "──────────────────────────────────────────────────────────────────────"
+  echo "  LEDGER GATE — code changed, but DECISION.md was not updated."
+  echo ""
+  echo "  WORKFLOW.md rule: every non-trivial change gets a dated ledger entry"
+  echo "  (decision / why / precludes). A decision not in the ledger didn't happen."
+  echo ""
+  echo "  → Add a DECISION.md entry and re-commit, OR if this change is genuinely"
+  echo "    trivial (typo / formatting), bypass with:  git commit --no-verify"
+  echo "──────────────────────────────────────────────────────────────────────"
+  exit 1
+fi
+
+exit 0

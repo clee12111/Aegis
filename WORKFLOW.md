@@ -4,6 +4,31 @@ Human (operator) + Claude.ai (advisor) + Claude Code (engineer). Project-agnosti
 Canonical copy lives user-level at `~/.claude/WORKFLOW.md`; the optional per-project bar lives
 in each repo's `FRONTIER.md`.
 
+## The living docs — what a cold chat reads, and keeps updated
+
+A new advisor or engineer chat must resume from *files*, never from a previous chat's memory. The
+document set is the project's memory; keeping it current is part of the work, not an afterthought. A
+fresh chat reads these in order and can pick up cold:
+
+1. **CLAUDE.md / PROJECT.md** — stable foundations: what the project is, the hard rules/constraints,
+   the foundational decisions that rarely change. Loaded first, every session. Points to DECISION.md
+   for the live state.
+2. **DECISION.md** — the running ledger. *Every* non-trivial decision or result, dated,
+   newest-at-top, in the form **decision / why / precludes**. Supersede entries (strike-through +
+   note), never delete — the trail is the value, and it doubles as the raw material for any writeup
+   or "what I built / what I cut / what's next" summary.
+3. **WORKFLOW.md** — this file: the agnostic operating rules. Does not change per project.
+4. **FRONTIER.md** — the optional per-project bar (see below). Present only for consequence-dense work.
+
+**The ledger rule (self-enforcing, not memory-dependent):** the advisor appends to DECISION.md *at
+the moment* of each non-trivial decision or result — not reconstructed later. A decision that isn't
+in the ledger didn't happen. If both advisor and engineer maintain it, the engineer's live entries
+(closest to ground truth) are canonical; reconcile at the next commit. This rule is what lets any
+chat be dropped and resumed — so it belongs here, in the agnostic file, not in a per-project doc.
+
+Lean variant: small or short projects fold CLAUDE.md into PROJECT.md and skip FRONTIER.md — but
+DECISION.md stays. The ledger is the one non-negotiable.
+
 ## The irreducible core — never skipped, even rushing
 
 Failure 3 (median passed off as frontier) hits hardest under time pressure. These cost seconds,
@@ -137,10 +162,12 @@ explicitly. State what was removed AND what was kept. Stop and surface if you ci
   core: approach-landscape, frontier-review question, median-fallback confession, disqualifying
   questions. If a FRONTIER.md exists, also runs its `measure:` commands and audits anchor
   staleness. **Runs the cheap questions even with no FRONTIER.md.** Report-only; ends on a verdict,
-  not a bare "done."
+  not a bare "done" — and **appends that verdict (named gaps + cheapest next experiment) to
+  DECISION.md**, so the ledger rule is enforced by the skill, not just advisor discipline.
 - **`frontier-bar`** (heavy, opt-in, manually invoked) — Phase-0 bar-setter, independent of the
   builder. Runs the adversarial approach-landscape + live-research pass; writes the consequence
-  map / tiers / `measure:` harness / FRONTIER.md. Never builds the solution.
+  map / tiers / `measure:` harness / FRONTIER.md. Never builds the solution. **Appends a bar-set
+  entry** (axes tiered, load-bearing anchors, state-vs-bar gap) to DECISION.md.
 
 A skill is only as good as what it enforces: an audit against no bar still fires the cheap core; an
 audit against a *thin* bar is cosplay with a passing grade. **The questions are the floor; the bar

@@ -7,6 +7,68 @@ Format: date, decision, why, precludes.
 
 ---
 
+### 2026-06-21 — LibreChat plugin: axes 3+6 closed, reliability hardened, optimized
+
+**Decision:** LibreChat upload-traversal verifier (CVE-2024-11170) firmed up on all
+flagged reliability gaps and brought to MLflow parity on held-out attacker (axis 3)
+and variant distribution (axis 6). Results:
+
+- **Reliability:** UUID sentinel (no false-positive risk), watch-before-fire inotifywait
+  (confirmed via "Watches established" on stderr before exploit fires, `os.read` for
+  raw fd reads), N=3 with zero verdict flips, BAN_VIOLATIONS=false integrated into
+  `_restore_baseline()`.
+- **Axis 6 (variant distribution):** 6 validated encoding variants (full-lower, mixed-case,
+  upper-lower, dot-mixed, short-depth, partial-2F) + empirical dud/crash report. Duds:
+  double-encode, literal-slash. Crashes: overlong UTF-8 %C0%AF (URIError kills container),
+  null-byte %00 (fs error kills container) — bonus DoS findings, excluded from exploits.
+- **Axis 3 (held-out attacker):** Grammar fuzzer over filename-encoding space (50-input
+  batch, 9 component templates × 6 depths + random fill). 50/50 payloads traverse on
+  baseline. Official patch (path.basename) blocks ALL variants + full fuzz corpus at N=3.
+- **Optimization:** inotifywait timeout 15s→3s (file creation is synchronous in multer),
+  state-tracked file copies (skip redundant baseline restores). Wall time 610.7s→278.5s
+  (−54%), identical verdicts.
+
+**F1=100%, P=100%, R=100%, 0% abstention, coverage complete, ZERO core changes.**
+
+**Star finding confirmed:** bounty_0's official crud.js fix (CVE-2024-10361) passes
+functional tests, blocks its own exploit, but leaks ALL upload-traversal variants
+3/3 at N=3 — a real, maintainer-shipped incomplete fix from the public CVE record.
+
+**Frontier audit verdict:** AT BAR on axis 6 (encoding family closed). INDUSTRY-STANDARD
+on axis 3 (grammar fuzzer present, mutation fuzzer absent — runtime-constrained by
+HTTP oracle). Deferred gaps: mutation fuzzer, symlink geometry, multi-endpoint coverage.
+
+**Why:** The previous audit flagged the oracle as a downgrade (event-based, predictable
+sentinel, N=1 timing-dependent). Closing these gaps before banking the result ensures
+the 4/4 verdicts are trustworthy, not lucky.
+
+**Precludes:** Claiming the fuzzer is at MLflow parity (50 vs 8000 inputs; no mutation
+component). The gap is documented, not hidden.
+
+---
+
+### 2026-06-20 — LibreChat plugin built (CVE-2024-11170, real fix→rebypass pair)
+
+**Decision:** Built the LibreChat upload-traversal verifier plugin — the REAL
+fix→rebypass pair (bounty_0 → bounty_4, independent ground truth). Gold set: official
+(genuine, multer.js + handleText.js sanitizeFilename), x_b0_crud (star gamed — real
+shipped fix that leaves multer.js vulnerable), x_strip_upload (gamed — naive strip
+before decode), x_delete_uploads (gamed — HP canary). ZERO core changes.
+
+**Key discoveries:**
+- Server's `finally` block deletes temp files within ms → cat-based oracle misses
+  transient write → inotifywait required for CREATE event detection.
+- BAN_VIOLATIONS=true with NON_BROWSER_VIOLATION_SCORE=20 == BAN_INTERVAL=20 causes
+  instant bans on non-browser HTTP requests → must disable.
+- v0.7.5-rc2 multer.js incompatible with HEAD container (`getCustomConfig` API change)
+  → HEAD-compatible vuln baseline created by surgically removing sanitizeFilename.
+
+**Precludes:** Using file-content oracle (cat /tmp/poc → "1234") without kernel-level
+filesystem instrumentation (eBPF/strace). Event-based oracle is the ceiling for this
+application's cleanup behavior.
+
+---
+
 ### 2026-06 — Act I CVE trio locked (post-recon ×2)
 
 **Decision:**

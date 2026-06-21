@@ -2,7 +2,7 @@
 
 **A security research agent that finds and exploits real software vulnerabilities — paired with a deterministic verifier that scores whether the result is *actually real*, not just whether a test passed.**
 
-> **Status:** Act II (Self-test). Vuln-agnostic verifier built and validated: behavioral oracle + held-out/fuzzed exploits + functionality gating + **calibrated abstention** (it returns "un-gradeable" rather than a false verdict, validated as honest deferral) + a measured precision/recall on a labeled gold set. **Proven transferable across two CWE families (path traversal + command injection) with zero core changes** — and in the process it caught two textbook "correct" fixes (`normpath`, `shlex.quote`) as only partially correct. Writeups: [transferability](writeups/act2-transferability.md) · [how it was built](writeups/act2-verifier.md) · bar: [FRONTIER.md](FRONTIER.md). Next: real BountyBench CVEs vs published baselines. Active research project.
+> **Status:** Act III (bridge). A deterministic, vulnerability-agnostic verifier that scores whether a security patch *genuinely* closes a vulnerability — behavioral oracle + held-out/fuzzed exploits + functionality gating + **calibrated abstention** (returns "un-gradeable" rather than a false verdict) + a measured precision/recall on a labeled gold set. **Validated on real disclosed CVEs against live Dockerized targets** — MLflow (CVE-2024-1558) and LibreChat (CVE-2024-11170), running on a **Google Cloud VM** with a **Docker / Kali (BountyBench) sandbox**. It caught a real, *maintainer-shipped* fix that passes the project's full test suite yet leaves the bug open, plus textbook fixes (`normpath`, `shlex.quote`) that are only partially correct. The **same core runs four vulnerability plugins — two synthetic CWE families plus two real CVEs — with zero code changes.** Writeups: [real-CVE](writeups/act3-real-cve.md) · [transferability](writeups/act2-transferability.md) · [how it was built](writeups/act2-verifier.md) · bar: [FRONTIER.md](FRONTIER.md). Next: the agent + published-baseline comparison. Active research project.
 
 ---
 
@@ -100,13 +100,15 @@ The honest part: the verifier is a *characterized approximation*, never absolute
 | Act | Focus | Status |
 |---|---|---|
 | **I — Foundations** | Domain ramp; environment; understand 3 real CVEs cold | Complete — environment proven end-to-end on GCP; CVE study complete |
-| **II — Self-test** | Attack own systems; build + calibrate the verifier | **In progress** — verifier built & calibrated (behavioral oracle + fuzzing + functionality gating + validated abstention + measured precision/recall); proven transferable across two CWE families with zero core changes. Next: validate on real CVEs |
-| **III — Benchmark** | BountyBench + ZeroDayBench vs. published baselines | Planned |
+| **II — Self-test** | Attack own systems; build + calibrate the verifier | **Complete** — verifier built & calibrated (behavioral oracle + fuzzing + functionality gating + validated abstention + measured precision/recall); transferable across CWE families with zero core changes |
+| **III — Benchmark** | BountyBench + ZeroDayBench vs. published baselines | **In progress** — verifier validated on real CVEs (MLflow, LibreChat) on live Dockerized targets, zero core changes; agent + baseline comparison next |
 | **IV — Generalization** | Arbitrary open-source repos; optional RL loop | Planned |
 
 ## Tech stack
 
-Python · Docker / Kali (BountyBench-compatible sandboxing) · pytest-style exploit/patch harness · Tree-sitter (AST parsing) · NetworkX (call graphs) · CodeQL / Semgrep (static signal) · Anthropic / OpenAI / Google APIs (provider-swappable) · [BountyBench](https://github.com/bountybench/bountybench) (primary benchmark)
+**Built / in use:** Python · **Google Cloud (Compute Engine VM, Linux)** · **Docker / Kali** (BountyBench-compatible sandboxing) · [BountyBench](https://github.com/bountybench/bountybench) (real-CVE benchmark) · pytest-style exploit/patch harness · grammar + mutation fuzzing · git + pre-commit hooks (measurement discipline) · Anthropic / OpenAI / Google SDKs (provider-swappable)
+
+**Planned (retrieval scaffold + agent, Acts III–IV):** Tree-sitter (AST parsing) · NetworkX (call graphs) · CodeQL / Semgrep (static signal)
 
 ## What this is *not*
 
@@ -123,12 +125,13 @@ CLAUDE.md           project brief + foundational decisions
 AEGIS_CONTEXT.md    full context, methodology, timeline
 DECISION.md         running decision log (dated)
 WORKFLOW.md         dual-Claude operating discipline
-SESSION_HANDOFF.md  live resume point
-notes/              domain study + design docs (Act I CVEs, Act II verifier design)
-writeups/           portfolio writeups (Act II verifier results)
+FRONTIER.md         the verifier's frontier bar (tiers + dated anchors)
+verifier/           vuln-agnostic core + per-vuln plugins (traversal, command-injection, MLflow, LibreChat)
+notes/              domain study + design docs (Act I CVEs, verifier design)
+writeups/           portfolio writeups (verifier, transferability, real-CVE)
 ```
 
-The retrieval scaffold, verifier, and documented benchmark-harness patches are added as Acts II–III progress.
+The verifier core and plugins live in `verifier/`; the retrieval scaffold and agent are added as Act III–IV progress.
 
 ---
 
