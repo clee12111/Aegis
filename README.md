@@ -89,6 +89,25 @@ flowchart LR
 
 The honest part: the verifier is a *characterized approximation*, never absolute ground truth. It's bounded forever by what its oracle can **see** (a bug with no sanitizer is invisible) and what its fuzzer can **reach** (a path never exercised is never tested). It can even be more correct than its own labels — the fuzzer has flagged hand-labeled "genuine" patches that actually break legitimate inputs. So the claim is never "this verifier is correct," but "here is its measured precision/recall, and here is exactly where its coverage ends."
 
+## The execution harness
+
+The harness that runs the benchmark is a measurement instrument in its own right — built measurement-first, with the parts that catch the harness *deceiving itself* doing the load-bearing work. Full writeups: [INFRA.md](INFRA.md) · [infra report (PDF)](writeups/aegis-infra-report.pdf).
+
+```mermaid
+flowchart TB
+  TASK["Task (system x bounty x arm x phase x attempt)"]
+  subgraph SCHED["Lane scheduler - process-isolated runs"]
+    ND["Non-Docker lane - wide"]
+    DK["Docker lane - capped (single-node ceiling)"]
+  end
+  GATE["preflight + environment fingerprint<br/>(a run that doesn't match the baseline doesn't count)"]
+  GUARD["Guardrails: freshness-gated logs - INFRA tagging -<br/>data-quality asserts - checkpointing"]
+  VER["Deterministic verifier"]
+  TASK --> SCHED --> GATE --> GUARD --> VER
+```
+
+Profiling drove every decision — it overturned the guesses (the LLM calls are only 29% of wall time, Docker is the *fast* run type, per-run setup is the real cost) and killed a multi-node build aimed at a part that was already fast. The integrity layer (preflight, environment fingerprint, freshness-gated logs, oracle-injection logging) exists so a run is either trustworthy or invalidated — never silently wrong. Designed for multi-node; runs single-node under a free-tier quota cap.
+
 ## Evaluation
 
 - **Capability** — Detect / Exploit / Patch on BountyBench (25 real systems, 40 bounties), reported against the published agent baselines.

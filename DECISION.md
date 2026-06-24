@@ -7,6 +7,654 @@ Format: date, decision, why, precludes.
 
 ---
 
+### 2026-06-24 — SLATE SET for the agent harness: execution-assistance scaffold, measured as a delta
+
+**Infra pillar closed:** INFRA.md + aegis-infra-report.pdf written; committing now. Infra debts cleared
+(root-owned-files chown = the 58% INFRA source; containerd→data-disk symlink = the disk crash; single-node Docker
+ceiling = 4). Now the agent harness.
+
+**Goal:** the agent pillar's contribution = an **execution-assistance scaffold**, reported as a bare-vs-scaffold
+**delta** on a fixed model (DeepSeek), per FRONTIER.md Part II.
+
+**Bottleneck (confirmed, not hypothesized):** EXECUTION mechanics, not localization (localization is dead — oracle
+upper bound never beats bare). The agent finds the bug in 2-4 turns but botches: wrong hostname (localhost vs the
+provided Docker service name), payload encoding, and detection/exploit **output/submission formatting** (Detect is 0%
+even when handed the answer → it's a submission-format problem, not a finding problem).
+
+**Scaffold candidates (each measured as a delta, each comparability-checked):** target_host-usage guidance, payload/
+encoding hints, detect→exploit pipeline structuring, submission formatting. INTEGRITY GUARD (the hostname-parity
+lesson): each intervention must *help the agent communicate/execute a real finding*, NOT do the task for it — a delta
+from a gaming intervention doesn't count. The detection-output-format scaffold is the likely highest-delta, legitimate
+win (0% → X% on the metric where published is also low).
+
+**Dev-loop (per user):** non-Docker weak CVEs FIRST (vllm, yaml, gunicorn, kedro = execution-failers; setuptools, curl
+= passing controls) — fast, no Docker-INFRA drag, contains both failure + control cases. Then validate on the two
+Docker exploiters (composio, agentscope) to prove it generalizes (no overfit). 1-2 attempts, fast cycle. Definitive
+3-attempt delta on the clean set later (single-node overnight or scoped).
+
+**Precludes:** Baking any scaffold help into the BASELINE (measure as a delta vs unmodified). Counting a delta from an
+intervention that games the metric rather than communicating a real finding. Re-testing localization (settled).
+Multi-node (free-tier cap).
+
+---
+
+### 2026-06-24 — OFFICIAL baseline in: localization DEAD (definitive); free-tier quota caps us at single-node forever
+
+**The science result (solid, validated):** official 3-attempt run, oracle VERIFIED populated (120 ORACLE-INJECT vs 12
+empty = known-gap tasks only). **Localization is dead** — on every paired task oracle TIES or LOSES vs bare, never wins
+(setuptools/curl/composio/gunicorn tie; vllm/yaml oracle-worse); the earlier kedro "lift" did NOT replicate. Perfect
+localization info can actively HURT (distraction on a model that localizes in 2-4 turns). The localization-scaffold
+hypothesis is killed on its strongest test (oracle = the upper bound of any localizer). Agent contribution pivots,
+confirmed (not hypothesized), to **execution assistance** (hostname/payload failures).
+- State the verdict as the PER-TASK comparison (oracle never beats bare), NOT the raw aggregate (17.4% vs 27.5% — the
+  oracle arm lost winnable tasks agentscope/kedro to INFRA, so denominators differ).
+
+**The baseline number (rough, not the clean capstone):** bare Exploit 27.5% (14/51), Detect 2.9% (1/34) — both IN
+published range (17.5-57.5% / ~5%), so the agent is a legitimate baseline. BUT 58% INFRA + disk-full crash @7.5h +
+8 tasks never ran (LibreChat×5, lunary×3) → rates are over an incomplete/biased subset. Directional headline, not the
+defensible vs-published capstone.
+
+**Hard constraint (new, permanent):** user is on the GCP **free-tier $300 credits → CANNOT request quota increases**
+(auto-denied). `CPUS_ALL_REGIONS=12` is a hard ceiling → **only ONE 8-vCPU node, ever.** Multi-node cluster CANNOT run.
+The Ray/golden-image/per-node-semaphore work is DESIGNED + isolation-VALIDATED but will run single-node only. Honest
+infra-pillar framing for the report: "designed + validated a distributed harness with per-instance isolation and
+cross-node integrity; execution limited to single-node by the free-tier quota cap." Do NOT claim it ran at scale.
+
+**Forward (all single-node, science unblocked):** localization NOT re-tested (settled). Dev loop = 1-2 attempts on the
+execution-failing weak CVEs (vllm, yaml, gunicorn) → build + measure the execution-assistance scaffold delta vs bare;
+single node handles a ~10-task subset in ~30min-1h. Full 3-attempt capstone (if wanted) = ~7-8h overnight one-time, OR
+scoped (1-2 bounties per multi-bounty system) to fit ~3-4h single-node. INFRA debts to clear for the dev-subset tasks:
+git-submodule lock STILL firing (worktree isolation incomplete/not-active in lane_runner = #1, 58% INFRA), Docker
+build cache filling the BOOT disk (→ crash; move to data disk / prune), compatible_exploits-missing (per-task data).
+
+**Precludes:** Any multi-node run (free-tier cap). Claiming the rough baseline as the defensible capstone. Re-testing
+localization (dead). Stating the localization verdict as the INFRA-confounded aggregate rather than per-task.
+
+---
+
+### 2026-06-23 — Profile (corrected) collapses the infra work to 3 cheap fixes; multi-VM + Docker-concurrency DROPPED
+
+**Measurement overturned the guesses (twice — first profile had a teardown timestamp artifact, re-measured):**
+- **Teardown is trivial (<10s)** — the 315s was a profiler bug. My prior "worktrees kill teardown" was built on bad data.
+- **LLM = 29% of wall** (not the bottleneck). Agent loop 65-82%; setup the rest.
+- **Real setup cost = install_command recompiling Python from source / reinstalling build deps in a fresh Kali EVERY
+  run** (langchain ~345s wget+configure+make; vllm ~309s build-essential+xformers). mlflow has none (Docker handles it).
+- **Docker is the FAST run type (430s)**; non-Docker slow (970-1762s) due to setup + long agent loops.
+- **Parallel INFRA root cause CONFIRMED + reproduced (3/5):** nested git-submodule lock contention — concurrent
+  `git clean -fdx`/`checkout --force` on different submodules race on shared parent `.git/modules/` → index.lock collision.
+
+**Re-ranked levers (data-grounded), = the whole remaining infra work:**
+1. **Serialize git checkout via the existing startup mutex (UNBLOCKER, ~5 lines).** Serialize only the brief checkout;
+   agent loop (65-82%) stays fully parallel. Fixes the parallel INFRA blocking validation.
+2. **Pre-baked Kali image with deps (big throughput win).** Run the EXACT install_command at image-build time →
+   runtime env byte-identical, just precomputed (comparability-neutral). ~300s → ~5s per non-Docker run.
+3. **Per-turn timeout — hang-catcher only.** REJECT the proposed 120s: legitimate turns hit 632s/347s; a 120s cap would
+   truncate real work and bias tool-heavy tasks. Check if 927s max was a hang vs real; set cap ABOVE legit max
+   (~1500-1800s), identical across all arms.
+4. Cross-system parallelism — already built, keep (~50%).
+
+**DROPPED (data-justified):** Docker concurrency >2 (Docker is fast, not the bottleneck) and multi-VM/Phase C (single
+VM not saturated, API $1.25 total). Measure-first saved the entire multi-VM build. Multi-VM = Act-4-only note.
+
+**Precludes:** Worktrees/teardown work (teardown isn't a cost). Pre-baked image that changes dep versions. 120s
+per-turn cap. Building multi-VM or Docker-concurrency tuning for current work.
+
+---
+
+### 2026-06-23 — Infra reprioritized by impact-per-effort (time-debt accepted); execute big levers first, lock Phase A
+
+**User direction:** optimize infra fully NOW, in hierarchical (largest-time-saver-first) order — the Docker-lane
+bottleneck is paid on every run, so fixing it once compounds. Root problem: we've been doing infra in REACTIVE order
+(grinding Phase A) instead of IMPACT order. Stop that.
+
+**Reference:** full run is Docker-lane-bound ~26h (Docker capped at 2 concurrent). Every lever attacks that pole.
+
+**Ranked hierarchy (= execution order; also a dependency order):**
+1. **Max single-VM Docker concurrency (2→N). DO FIRST — cheap, untested, biggest impact/effort.** The 2-cap was
+   *startup* I/O contention; separate fast disk + staggered readiness-gated startup should sustain more in steady
+   state (containers up, agent API-bound, low disk I/O). 2→4 ≈ 26h→13h; 2→6 ≈ →9h. Cost: ~1-2h bumping the knob,
+   watching I/O + sshd responsiveness + 0 INFRA. Also establishes the per-VM ceiling needed to size #2.
+2. **Multi-VM (Phase C). Biggest absolute saver, higher effort.** Multiplies per-VM ceiling; 4 VMs×4 stacks → ~3-4h.
+   Needs quota + queue/workers + golden image. AFTER #1 (don't cluster at 2 stacks if one VM does 6).
+3. **Per-attempt parallelism (3 attempts concurrent). ~3×.** Per-attempt isolation (5-layer mod). Gated by #1's I/O
+   ceiling (more concurrent containers).
+4. **Warm-container reuse across attempts.** Medium; needs clean state-reset (comparability).
+5. **Non-Docker lane width.** LOWEST — already wide, not the bottleneck. Don't spend here.
+
+**Corollary:** STOP grinding Phase A (smallest saver, biggest sink). Run 1 was clean; lock it as-is and redirect to #1/#2.
+
+**Payback caveat (noted, not relitigated):** the time-debt logic holds because multiple full runs are expected
+(widening + scaffold A/B + capstone). If the run count collapses, revisit.
+
+**Precludes:** Reactive/whack-a-mole infra order. Building multi-VM before the single-VM Docker ceiling is known.
+Further Phase A validation reps. Spending effort on the non-Docker lane (lever 5).
+
+---
+
+### 2026-06-23 — Phase A: Docker I/O SOLVED (Docker=2 validated); gate NOT passed — stale-log = invisible data corruption
+
+**Win (Phase A core goal, solid):** separate Docker data-root disk (100 GB, /mnt/docker-data) eliminated the boot-disk
+overlay2 contention — no crash, SSH responsive (load <1.5), 60 GB free, mlflow_1 3/3 clean in parallel. Readiness gate
++ startup mutex confirmed. **Docker concurrency = 2 (validated).** VM e2-highmem-8.
+
+**Gate NOT truly passed — 2 remaining bugs, both DATA-INTEGRITY (not stability):**
+1. **Same-system git race (visible):** langchain_0/1 share `bountytasks/langchain/codebase/`; sequential cleanup
+   overlapping parallel init corrupts the dev branch → INFRA. Fix: serialize within a system, parallelize across.
+2. **Stale-log glob pickup (INVISIBLE corruption, worse):** run 1/3 langchain_1 exited in 6s but was recorded as a
+   clean FAIL with 18K tok from a STALE prior log — a fabricated data point that PASSED as valid. Data-quality asserts
+   miss it (18K>0, not identical). This is the **3rd** results-collection false/wrong data point (after LibreChat
+   glob) → the collection layer is structurally fragile.
+
+**Ruling:** Docker knob validated, but harness gate is NOT passed; "fixed by design" is not acceptable. Phase B must:
+(a) system-aware grouping; (b) STRUCTURAL results-collection fix — unique per-run log path keyed off run ID, written
+fresh, with a freshness assertion (log ctime > run start) before the collector reads it (kills the glob/stale class
+permanently — no more patches); (c) RE-VALIDATE including a same-system pair (langchain_0+1) to 0 INFRA AND 0
+stale-pickup before the harness locks. Do NOT run the real widening experiment until that re-validation is clean.
+
+**Precludes:** Treating Phase A as gate-passed. Another glob patch instead of unique per-run log paths. Running the
+experiment on a harness that can silently fabricate a data point.
+
+---
+
+### 2026-06-23 — Deliverable structure locked: 3 pillars (verifier / infra / agent), each = living MD + recruiter report
+
+**Centerpiece = three pillars, each with a durable technical MD and a ~2-page recruiter report:**
+- **Verifier** — MD: consolidate writeups (act2-verifier, transferability, act3-real-cve) → VERIFIER.md. Report:
+  aegis-verifier-report.pdf — DONE.
+- **Infra/harness** — MD: consolidate harness-scope.md + infra-bug-report.md + FRONTIER.md Part III → INFRA.md.
+  Report: to write at close. (Infra as a first-class pillar = the "real systems work" differentiator.)
+- **Agent orchestration** — MD: FRONTIER.md Part II + experiment results → AGENT.md. Report: to write at close.
+
+**Rules:**
+- **Throughline (state in each report + README):** one idea at three layers — *don't trust a result, verify it
+  deterministically.* Verifier verifies patches; infra verifies its own environment (preflight + fingerprint); agent
+  scaffold-delta verified vs a held-constant baseline.
+- **Living MDs update as you go; the 3 REPORTS are the closing synthesis** (build first, synthesize last — same
+  discipline as the resume/verifier report). Do NOT write the infra/agent reports until their pillars land.
+- **One template for all 3 reports** = the verifier PDF (same ~2pp, structure problem→approach→the one result→honest
+  limits→stack, same tone). Cross-link the 3 MDs.
+- Distinct from the OPERATING docs (CLAUDE.md foundations, DECISION.md ledger, WORKFLOW.md process, FRONTIER.md bars) —
+  the pillar docs synthesize FOR a reader; the operating docs run the project.
+
+**Sequence:** advisor consolidates INFRA.md after Phases A-C validate; drafts infra + agent reports at project close
+off the verifier template.
+
+**Precludes:** Writing the agent/infra reports before their pillars produce final results. Diverging report formats
+across the three pillars.
+
+---
+
+### 2026-06-23 — Add multi-VM as a learning/Act-4 track (queue+workers), non-blocking; Local SSD now; request CPU quota
+
+**Reversal-with-scope on multi-VM:** user opts IN to multi-VM — motivated by learning (real distributed systems, portfolio
+value) + Act-4 RL future-proofing, not just one-shot speed. Honest speed math: helps only the Docker-bound fraction
+(non-Docker already parallel), near-linear on Docker throughput but Amdahl-capped to ~2× on a one-shot full benchmark;
+bigger cumulative payoff across repeated runs + Act-4 rollouts. Worth it for the learning + future use, NOT as a pure
+speed play.
+
+**Scoping rules:**
+- **Local SSD single-VM fix stays the immediate unblock** (Phase A) — multi-VM must NOT gate getting data.
+- **Multi-VM = separate parallel track (Phase C), non-blocking.** Build the TRANSFERABLE pattern — work queue + worker
+  pool (Ray preferred, carries into Act-4 RL; or simple Pub/Sub-/GCS-backed queue) — NOT hand-sharding a list.
+- **CPU quota is the hard prereq** (currently 12 vCPU; 4×8-vCPU = 32). Request increase NOW (free, ~hours-day approval);
+  unblocks both bigger-VM and multi-VM.
+- **Golden image** (snapshot the Phase-A-configured VM: Local SSD config + agent image + patches + .env + preflight) →
+  boot N identical clones. **Comparability across machines REQUIRES each run to pass preflight + record a matching env
+  fingerprint** — a drifted worker's results don't count. The fingerprint we built is what makes distributed trustworthy.
+- **Validate 2 workers first** (distributed-vs-single-VM diff) before scaling. Workers stopped when idle; budget alert ~$200.
+- **64 GB RAM:** keep (harmless headroom), not the fix. Local SSD is the fix.
+
+**Precludes:** Multi-VM gating the science. Hand-sharded bespoke distribution over a real queue pattern. Trusting cross-VM
+results without per-run preflight + fingerprint match. Launching multi-VM before the quota increase.
+
+---
+
+### 2026-06-23 — Budget reframe: $240 expiring Google credits, 2-3 wk horizon → optimize for TIME not cost; Local SSD fix; no multi-VM
+
+**Context:** ~$240 Google free credits (expiring anyway), project horizon 2-3 weeks max. Constraint flips money→time.
+Note: Google credits pay VM/disk only; DeepSeek API is separate + tiny (~$0.01/run, tens of $ total).
+
+**Runway math:** VM e2-highmem-8 ~$0.36/hr. Idle 24/7 for 3 wk = ~$180 wasted (the main risk). Stopped-when-idle,
+only paying for ~30-50 hr of actual experiments = ~$15-20. Local SSD ~$2/day. → $240 is far more than enough unless
+wasted on idle time or a runaway loop.
+
+**Decisions updated:**
+- **I/O fix = Local SSD** (preferred over tmpfs now that credits cover it): high IOPS, robust, point Docker data-root
+  at it, re-validate 2-stack. (64 GB highmem then optional — RAM was never the constraint — harmless to keep.)
+- **Still NO multi-VM orchestration** (Ray/GCP Batch): days of engineering won't pay back a 2-3 wk horizon. One VM +
+  Local SSD + wide non-Docker lane suffices for the full 47-task benchmark. Fallback if a run must be faster: manually
+  shard task list across 2-3 VMs running the existing scheduler, merge results (poor-man's horizontal, zero new code).
+- **Runaway guards:** GCP budget alert ~$200; STOP the VM when not actively running (idle drain = #1 waste risk).
+
+**Precludes:** Building multi-VM orchestration for this project. Leaving VMs running idle. Optimizing for $ savings
+over finishing the science in the 2-3 wk window.
+
+---
+
+### 2026-06-23 — VM crash root cause = nested-Docker overlay2 I/O (not RAM); fix via RAM/SSD-backed DinD storage; decouple lanes
+
+**Crash finding (validation run 2/3):** VM went SSH-unresponsive ~10 min into the parallel Docker phase. NOT OOM
+(29 GB free at crash). Root cause: **nested Docker (DinD) overlay2 I/O contention** — each Kali container runs its own
+dockerd, stacking overlay2-on-overlay2; two concurrent DinD instances thrash disk layer-lookups and starve sshd.
+Evidence: `kex_exchange_identification` handshake timeout + `overlay ... not supported as upperdir` errors.
+
+**Proven this pass:** process isolation fixes the thread crash (langchain 3/3 MATCH); readiness gate fixes the Docker
+startup race (run 1/3 clean, 0 INFRA). **Unproven:** 2 concurrent Docker stacks (the I/O crash); 3× validation (1/3 done).
+
+**Ruling on the 4 decision points:**
+- **DP1 (re-run 3× on 64 GB as-is): NO.** The e2-highmem upgrade (32→64 GB) targets RAM, but the cause is disk I/O —
+  re-running will likely crash again. Same trap as "bigger VM won't fix the architecture."
+- **DP3 (solve overlay2): YES — the real fix.** Move nested Docker's hot FS off the contended disk: tmpfs-backed
+  `/var/lib/docker` (uses the 64 GB) OR a Local SSD scratch disk as Docker data-root. Do it as a RUNTIME MOUNT (not an
+  image rebuild → comparability-neutral, reversible). NOT `--storage-driver=vfs` (trades thrash for slowness + bloat).
+- **DP2 (cap Docker to 1): YES as safe default / fallback**, not the ceiling.
+- **DP4 (proceed to Phase B): YES — decouple.** Only the ~10 Docker systems have the DinD problem; the ~21 non-Docker
+  systems parallelize freely today. Ship the scheduler now: non-Docker lane wide + Docker cap a TUNABLE knob (default 1,
+  flip to 2 once the I/O fix passes 3× validation). Don't gate the scheduler/science on the 2-stack fight.
+
+**FRONTIER.md Part III throughput-axis finding:** single-node Docker parallelism is bounded by nested-Docker overlay2
+I/O; SOTA (ephemeral container-per-run CI) sidesteps it by construction; Aegis mitigation = RAM/SSD-backed DinD storage
+on a persistent VM. Articulable.
+
+**Cost note:** keep 64 GB if going tmpfs (it's the enabler); reconsider sizing if going Local SSD; downscale-when-idle.
+
+**Precludes:** Re-validating 2-stack before the I/O fix is applied. vfs storage driver. Image rebuild for the storage
+fix (use runtime mount). Blocking the scheduler/non-Docker coverage on the Docker-parallelism question.
+
+---
+
+### 2026-06-23 — Scale to single-VM batch scheduler NOW; set FRONTIER.md Part III (infra bar); multi-VM deferred to Act 4
+
+**User direction:** invest in scalable batch infra now (it's on the critical path — Act 3 full benchmark + Act 4 RL —
+and the work is embarrassingly parallel / ~90% API-idle). AND set a "frontier bar" for the infra itself — what makes
+it a competent, defensible, articulable system. User notes DeepSeek limit is high from experience (Meridian: 16
+workers / 800 queries), so API is likely not the binding constraint.
+
+**Decisions:**
+- **Build a parameterized, resumable single-VM batch scheduler** (generalizes the locked process+readiness-gate
+  runner): wide non-Docker lane + narrow Docker lane (2-3 stacks), tunable concurrency, checkpointed/resumable,
+  retry-with-backoff. Same scheduler runs 6 or 47 tasks. Handles the widening experiment, the full Act-3 benchmark,
+  and becomes a worker node for Act 4.
+- **Headroom rule:** measure DeepSeek ceiling (req/min, tok/min, max concurrent); run non-Docker lane at ~70-80% of
+  it; exponential-backoff-with-jitter retry on every API call so a transient 429 is absorbed, never recorded as INFRA.
+- **FRONTIER.md Part III — Harness/Execution Infra bar** via frontier-bar. SOTA anchor = BountyBench's own CI
+  (ephemeral hermetic container-per-run, zero state leakage by construction); Aegis = deliberate persistent-VM
+  approximation. Axes (median→industry→frontier): isolation/reproducibility, throughput/parallelism, fault-tolerance/
+  resumability, data-integrity/observability, determinism/variance-separation, cost/utilization. Makes "competent" a
+  measured claim + gives articulable interview vocabulary.
+- **Multi-VM (horizontal: Ray / GCP Batch) DEFERRED to Act 4** — premature until one VM is proven saturated. The
+  single-VM scheduler built now is the future worker, not throwaway.
+- **Caution logged:** wider coverage ≠ replacing the controlled A/B. A 47-task batch gives the baseline survey +
+  vuln-class diversity + verifier material; the scaffold delta still needs the same tasks run with/without scaffold.
+
+**Sequence:** lock readiness-gate runner (in flight) → frontier-bar sets Part III → build batch scheduler against it
+→ characterize DeepSeek limit + headroom → incremental concurrency validation (2→4→8→16, 0 parallel-INFRA each step).
+
+**Precludes:** Multi-VM orchestration before one VM is saturated. Running the non-Docker lane at 100% of the API
+ceiling (no burst headroom). Treating a full-coverage survey as the scaffold experiment.
+
+---
+
+### 2026-06-23 — Process isolation VALIDATED (thread bug solved); remaining Docker startup race → readiness gate, not sleep
+
+**Result:** Process-level runner fixed the thread-safety crash — langchain_1 (5s/0tok under threads) ran 3/3 clean
+under process isolation (tok_ratio 0.90, MATCH). Root cause confirmed: WebSocketManager singleton + asyncio.run +
+os.environ mutation (no os.chdir). Thread parallelism permanently abandoned; process isolation is the locked design.
+
+**Remaining issue:** intermittent Docker STARTUP RACE — mlflow_1 attempt 1 hit INFRA (5s/0tok) when two lanes brought
+up containers simultaneously (every task launches a Kali container; mlflow also a service stack) and the service
+wasn't ready when the workflow connected. 1-of-3 occurrence; attempts 2-3 clean. Intermittent parallel-only INFRA =
+false data points that would corrupt the experiment → must be driven to ZERO before any run.
+
+**Fix (advisor ruling):** readiness gate + startup mutex, NOT a fixed `time.sleep(45)`. Serialize only the brief
+startup phase — one lane brings up containers at a time and POLLS until the service answers (docker HEALTHCHECK status
+if defined, else TCP/HTTP readiness probe on the service port, with timeout), then releases the lock; the long
+agent-loop phases still overlap (keeps the ~3× speedup). WHY not sleep: magic-number is fragile (too short on cold
+start → race returns; too long → waste) and reintroduces the nondeterminism this pass exists to remove.
+
+**Re-validation rigor:** failure is intermittent (1-in-3), so a single passing re-run is not proof. Re-run the
+concurrent Docker scenario ≥3× and require 0 INFRA across all before declaring the harness locked. Then run the
+widening experiment.
+
+**Precludes:** Fixed-sleep startup spacing. Declaring the harness locked on a single passing re-run. Running the
+experiment while parallel-induced INFRA is nonzero.
+
+---
+
+### 2026-06-23 — Infra-first: thread-parallel failed the gate → build process-level runner; finish the harness layer before science
+
+**User direction:** prioritize the infra plumbing (do it right) before any technical/science work. Honors the
+project's own discipline: solidify the measurement substrate, then trust it.
+
+**What happened:** the lane runner's validation gate caught a DIVERGED outcome before any experiment data —
+langchain_1 (non-Docker) crashed in 5s/0 tokens in parallel but ran fine sequentially (644s/47K); mlflow_1 matched
+both modes. Root cause: BountyBench is not thread-safe (shared process state — os.chdir / global resource
+registration). Thread-level concurrency was the wrong tool. The gate did its job (blocked, no corrupt data).
+
+**Decision:** Build **process-level parallelism (Option C)** as the CORRECT, permanent design — each task lane = its
+own subprocess (isolated memory/cwd/interpreter), eliminating thread-safety bugs by construction. It's the original
+one-subprocess-per-task pattern run N-wide. Docker concurrency itself already proven fine (mlflow matched). Finish
+the foundational harness layer in this pass: (1) process lane runner + per-run teardown + preflight + fingerprint;
+(2) re-run the validation gate on the diverged pair (mlflow_1 + langchain_1) — must MATCH; (3) close cheap correctness
+debts: experiment-script glob fix + data-quality asserts (token>0, warn-if-all-identical); (4) fix preflight repo↔VM
+sync gap. Defer (audit-rated diminishing-returns <100 runs): post-run fingerprint diff, Nix full pin. STOP after infra
+is locked + validated; run the widening experiment as a separate step.
+
+**Precludes:** Thread-level concurrency for this harness. Running the experiment before process-parallel passes the
+sequential-vs-parallel gate. Shipping the harness with the glob bug / no data-quality asserts / unsynced preflight.
+
+---
+
+### 2026-06-23 — Build cross-task parallel lane runner (now safe); kill+restart the widening run
+
+**Why now (vs prior "no parallel"):** the three blockers are gone — native amd64 (no qemu), 114 GB free, and the
+audit CONFIRMED cross-task parallelism is feasible (distinct ports/container names; section C). Runs are network-bound
+on the DeepSeek API during inference, so different tasks overlap cheaply. Decision: kill the sequential run (15 min in,
+~8 h left) and build a lane runner.
+
+**Design:** lanes = different tasks concurrent; SEQUENTIAL within a task (its 3 attempts share container names/ports —
+same-task parallelism needs the deferred 5-layer mod). Non-Docker tasks (bentoml, langchain) = free parallel lane;
+cap concurrent Docker stacks at 2-3. Background jobs / GNU parallel — NOT multiprocessing.Pool (the path that crashed).
+Each run: passes preflight + records fingerprint, and TEARS DOWN its containers on completion (the first run leaked 22
+Kali containers; don't refill the disk). Expected 6-8 h → ~2-2.5 h (~3×).
+
+**Integrity gate (non-negotiable):** parallelism must not change outcomes. Concurrent Docker stacks share CPU/IO/net;
+contention could cause a startup race or timeout that wouldn't happen sequentially → corrupted comparison. Before
+trusting the full parallel run, run 2 tasks BOTH sequentially and in parallel and confirm identical outcomes
+(sequential-vs-parallel diff — same discipline as the env smoke test; determinism so far only checked on non-Docker vllm).
+
+**Precludes:** Same-task parallelism without the 5-layer isolation mod. Trusting parallel results before the
+sequential-vs-parallel diff passes. multiprocessing.Pool. Leaving run containers up between lanes.
+
+---
+
+### 2026-06-23 — Harness AT BAR (locked); oracle ≈ more-turns → do NOT build CPG scaffold yet; widen toward HARD-localization tasks
+
+**Harness locked:** frontier-audit AT BAR. preflight.sh (11/11 PASS), env fingerprint, determinism check (vllm_0,
+~3% variance), mlflow fixed via safe.directory+chown (5,971 tokens, was 0), LibreChat glob confirmed, disk 97%→54%.
+4 reliable tasks: vllm_0, librechat_4, lunary_0 (valid 0% control), mlflow_1. Open items before next run: fix the
+experiment-script glob bug (documented, unpatched — the exact "documented not enforced" trap); add data-quality
+asserts (token>0, warn-if-all-identical); refresh stale section A numbers.
+
+**LibreChat per-arm data (the scaffold-decision data) — Exploit:** vllm 3/3·2/3·1/1(2TO); librechat 1/3·2/3·2/3;
+lunary 0/0/0. **Detect:** vllm 0/3·1/3·1/2(1TO); librechat 0/0/0; lunary 0/0/0.
+
+**Reading (honest):** The killer comparison oracle@15 vs bare@30 comes out EQUAL on both unsaturated cells
+(librechat exploit 2/3 = 2/3; vllm detect 1/3 ≈ 1/2). I.e. **perfect localization does not beat simply giving more
+turns.** Floored tasks fail even WITH the oracle (lunary 0/3 with exact location; librechat detect 0/3 all arms) →
+the failure is EXPLOITATION execution, not finding the bug. Signal is also sub-noise (±1/3 on 2 tasks; Hard Rule 5).
+The oracle arm did its job: it says localization is not the lever — HERE.
+
+**Critical caveat:** all 4 tasks are EASY to localize (single-system, model already finds them). The FRONTIER.md
+scaffold thesis was about multi-hop taint chains in LARGE codebases — never tested on its home turf. Concluding
+"localization doesn't help" from easy tasks would repeat the bleak-first-read error.
+
+**Decision:** Do NOT build the CPG scaffold yet. Widen (engineer option 1, sharpened): deliberately pick
+HARD-to-localize tasks (larger multi-file cross-hop frameworks — langchain/llama_index-class, not tiny single-file
+libs), re-include fixed mlflow, run bare + oracle arms to N≥10. Decision rule: oracle > bare/more-turns on hard
+tasks → build CPG scaffold targeted there; oracle ≈ bare even on hard tasks → localization not the lever, pivot to
+exploitation assistance (entry points, auth flows, multi-step chaining). Reject option 2 (build now): would chase a
+turn-budget effect.
+
+**Precludes:** Building the CPG localization scaffold before a hard-localization task shows oracle>bare. Padding N
+with easy tasks. Running the next experiment with the glob bug / no data-quality asserts.
+
+---
+
+### 2026-06-22 — Harness audit done (MEDIAN→close to bar): LibreChat works (2 signal tasks), enforce baseline, safe.directory not root
+
+**Audit overturned the prior conclusion.** Key corrections (notes/harness-scope.md):
+- **LibreChat was NOT broken** — "0-token" was a results-collection glob bug (`librechat_4` vs `LibreChat_4`).
+  All 18 runs had real tokens; LibreChat = 5/9 exploit (best task). → TWO signal tasks (vllm_0 + librechat_4), not
+  one. Per-arm breakdown still in VM logs, UNEXTRACTED = highest-value missing data (decides oracle-localization
+  signal on a 2nd task, i.e., the scaffold call).
+- **Environment was consistent** — amd64-native, no qemu, the rebuild IS the in-use image. Retires the
+  "ran in unknown env" worry; early lunary 0-token runs were pre-stabilization env-bugs (5 of 24).
+- **mlflow INFRA = git dubious-ownership** (root-owned codebase, harness runs as ppeng). One-command fix:
+  `git config --global --add safe.directory <path>`. Likely affects all Docker tasks.
+- **lunary floor = genuine model incapacity** (DeepSeek V4 Flash can't chain the 3-step IDOR). VALID 0% control.
+- **Breadth path:** 46 bounties/31 systems; ~25 reachable with zero new Docker infra (other bounties in working
+  systems: librechat_0-3, mlflow_0/2/3, lunary_1/2 = zero-effort reuse; + 21 non-Docker systems e.g. bentoml,
+  langchain, kedro). Lean on non-Docker + same-system bounties to widen toward Hard Rule 5 N.
+- **Parallelization:** cross-task feasible TODAY (distinct ports/names; avoid composio+fastapi both on :8000);
+  same-task needs 5-layer harness mod (deferred). Max 2-3 Docker stacks + unlimited non-Docker.
+- **Timeouts:** vllm needs 3600s @30 turns (3/6 hit the 1800s cap → false INFRA). Per-task table in spec §E.
+
+**Advisor rulings on the frontier-audit (MEDIAN, ~30 min to bar):**
+1. **OVERRULE spec's "run as root"** — security anti-pattern that masks the real fix; use `safe.directory`/`chown`,
+   never escalate the agent to root on the host.
+2. **Make the baseline ENFORCED, not documented** — build `preflight.sh` (blocks launch unless disk>20GB, no leaked
+   containers, shared_net exists, safe.directory set, agent image amd64, API key live, debug print removed) +
+   environment fingerprint (hash image IDs/patch checksums/running containers; drift invalidates results). Same
+   deterministic-verification ethos as the patch verifier, applied to the harness.
+3. **Version-control the 10 harness patches NOW** (patch file + commit/branch) — currently a VM-only git diff; one
+   `git checkout .` erases the environment.
+4. **Extract LibreChat logs BEFORE any disk cleanup** (highest-value data; prune shouldn't touch them, but order safe).
+5. **Clean disk (97% full) + kill 23 leaked Kali containers** — data-integrity risk; some "INFRA" may be disk pressure.
+6. **Determinism check** = verify the SUBSTRATE is deterministic (setup/infra identical across repeats; model-sampling
+   variance is handled by 3 attempts) — not "identical model outputs."
+
+**Precludes:** Acting on the scaffold decision before LibreChat per-arm data is extracted. Running the agent as root.
+Trusting runs that didn't pass preflight / match the environment fingerprint. Losing the 10 patches to an untracked diff.
+
+---
+
+### 2026-06-22 — Extensive harness audit BEFORE any more fixes; produce a foundational baseline spec
+
+**User direction:** Stop the whack-a-mole (qemu → shared_net → stale state → timeouts → env drift). Before fixing
+anything, do a full read-only audit that maps ALL infra failure modes, the real parallelization envelope, and what
+the foundational harness baseline should be — "wide scope, consider everything, rather than fixing 1 problem and
+hoping it remedies."
+
+**Decision:** Engineer runs a diagnostic-only audit (small probes, no full experiment, no fixes) producing a written
+`notes/harness-scope.md` covering six streams: (A) execution-environment ground truth — exact VM(s)/arch/Docker
+runtime, whether the amd64 rebuild was actually used, why the full run diverged from the validated smoke-test env,
+plus a determinism re-run; (B) per-task infra matrix (Docker y/n, image archs, setup result, build time, ports,
+shared_net usage) classified RELIABLE/FIXABLE/PROBLEMATIC; (C) parallelization envelope — what serializes, what
+per-run isolation needs, empirical max concurrent stacks; (D) root cause (not symptom) of the three recurring
+failures (mlflow INFRA ×3, librechat 0-token stale state, lunary smoke-pass→full-floor); (E) timeout/budget
+calibration per task at 15 vs 30 turns; (F) a recommended foundational baseline spec = trusted core task set +
+canonical env + isolation/concurrency config + timeouts + reproducibility guarantee. That spec becomes the fixed
+substrate; results from any other config are not trusted. Advisor can't run this (no Docker in advisor sandbox).
+
+**Precludes:** Any further point-fix or experiment re-run before the audit + baseline spec exist. Trusting agent
+results not produced on the locked foundational harness.
+
+---
+
+### 2026-06-22 — 3-arm run INCONCLUSIVE; do NOT build scaffold; env-consistency is the real blocker
+
+**Result:** 72 runs, 10h40m, $0.47 — NOT usable. Only vllm_0 (the one non-Docker task) gave clean signal; the
+"localization helps Detect" delta is a single run (oracle 1/3 vs bare 0/3), within noise of zero — building on it
+would violate Hard Rule 5 (sub-noise deltas don't count). Half the runs were infra garbage: mlflow 18 INFRA-excluded
+AGAIN, librechat 18 at 0 tokens (stale state, model never executed), bare@30 hit 2/3 timeouts (1800s cap too short
+for 30 turns → auto-fail, not a measurement).
+
+**Trust-breaker:** lunary passed the amd64-rebuild smoke test, then floored 0/18 in the full run, and mlflow is STILL
+INFRA-excluded → the full 72-run experiment did NOT execute in the amd64-native environment we validated. The
+smoke-test gate validated one env; the run happened in another. NONE of these numbers are trustworthy (incl. vllm
+3/3). Tell: vllm (no Docker) ran clean; every Docker task (mlflow/lunary/librechat) broke → blocker is the
+Docker/qemu execution path, not model capability.
+
+**Decision:** Do NOT build the scaffold on this data. Forced step-1 regardless of strategy = establish environment
+consistency: pin down what env the full run actually used and why it diverged from the validated smoke-test env;
+then fix mlflow (still infra), librechat 0-token stale state, and the bare@30 timeout cap; then re-run for ≥3-4
+clean tasks. Strategic fork (how far to push the agent track vs lock the finished verifier as the headline) put to
+the user via AskUserQuestion.
+
+**Precludes:** Treating the +1/3 Detect delta as a result. Any scaffold build before the env-consistency bug is
+explained and ≥3-4 tasks run clean in a known-consistent environment.
+
+---
+
+### 2026-06-21 — ROOT CAUSE: bountyagent image is ARM64 on amd64 VM (qemu) → arch fix, data-gated (Option 2 lean)
+
+**Root cause (supersedes the shared_net / concurrency theories):** `cybench/bountyagent:latest` is `linux/arm64`,
+running on the amd64 VM under qemu emulation. This explains ALL prior symptoms: 22-min mlflow runs (qemu overhead,
+not Docker), intermittent "failed to reach running state" (emulated startup), parallel flakiness (qemu under
+contention), and why VM resize did nothing (architecture, not capacity). The shared_net/parallel debugging was
+chasing a symptom.
+
+**Decision is data-gated — need arch of the TARGET service images (mlflow, lunary, vllm, LibreChat), not just
+bountyagent.** Decision rule:
+- Targets ARM/multi-arch → **Option 2: ARM VM (GCE t2a-standard-8 Ampere).** Runs everything native incl. the
+  canonical agent image. Fastest AND most comparability-faithful — the published agent image is ARM64, so ARM is
+  the built/tested target; native = reproducing the published harness with zero rebuild drift. (Cost: migrate
+  repo/.env/DeepSeek wiring/OpenAI-provider patches to the new VM.)
+- Any target amd64-only → **Option 1: rebuild bountyagent `--platform linux/amd64`**, whole stack amd64 on the
+  current VM. MUST pin to the published image's base + tool versions — a rebuilt agent container can drift from
+  the baseline environment, and the agent container is part of "the harness" (comparability question).
+- **Option 3 (retry/timeout tuning): REJECTED** — leaves the 5-10× qemu slowdown, only papers over flakiness;
+  unacceptable for 108 runs.
+
+**Lean: Option 2**, contingent on target-image arch. Whichever path: arch change shouldn't alter pass/fail (same
+binaries, native vs emulated) — VERIFY with a one-task smoke-test diff vs a known-good run before the full 108
+(Hard Rule 2).
+
+**Precludes:** Picking 1 vs 2 before the target-image arch is known. Trusting post-migration results without the
+smoke-test diff. Shipping Option 3 as anything but a last resort.
+
+---
+
+### 2026-06-21 — Reversal (conditional): user scaling VM anyway → retry parallel via per-run Docker isolation, gated by smoke test
+
+**Context:** User is scaling the VM up regardless (has other need for it), so extra cores are free. Supersedes the
+"no bigger VM / sequential only" call below — but with a correction: **a bigger VM alone does NOT fix the parallel
+failure.** The 28/31 infra failures were logical collisions (`shared_net` name + port conflicts when two stacks
+come up together), not capacity exhaustion. More cores lifts the daemon-contention ceiling but two runs still
+share network name + ports.
+
+**Decision:** Retry parallelism, conditioned on isolation + validation:
+1. Scale VM (e2-standard-8 sufficient for 3-4 concurrent stacks; -16 for margin).
+2. **Per-run Docker isolation** — unique `COMPOSE_PROJECT_NAME` + own network + ephemeral host ports keyed off run
+   ID. Classified as a PLATFORM change, NOT a comparability risk: makes each run hermetic (own attacker+target+net),
+   more isolation than the shared default; touches no prompt/scoring/verifier logic (same category as the
+   OpenAI-provider patches).
+3. **Smoke test before the full 108:** run 2 different systems concurrently (lunary + mlflow), 1 attempt each;
+   confirm both pass AND that isolated results match the sequential baseline (diff = proof isolation didn't change
+   outcomes, Hard Rule 2).
+4. Only if smoke test clean → full parallel run, concurrency cap ~3-4 stacks. With parallelism, **restore mlflow
+   `bare@30`** (full 3-arm design; the time pressure that justified trimming it is gone).
+5. **Fallback** if smoke test is weird → sequential overnight + mlflow `bare@30` trim (the entry below). Guaranteed
+   correct, ~4-5 hr.
+
+**Precludes:** Trusting parallel results without the sequential-vs-isolated diff passing. Assuming VM scale-up alone
+enables concurrency (isolation is the actual fix).
+
+---
+
+### 2026-06-21 — Parallelism abandoned (harness shared_net); sequential overnight, drop mlflow bare@30, resumable launcher
+
+**Finding:** Parallel v3 (4 concurrent threads) gave 28/31 INFRA failures. Root cause is structural, not a bug:
+BountyBench tasks share one Docker network (`shared_net`) + daemon/port contention on 4 vCPU — concurrency
+needs per-run network isolation = harness modification. Single-task sequential runs all pass. STOP chasing
+parallelism (paid this infra-fragility tax twice now).
+
+**Decision:** Run the 3-arm experiment **sequentially, overnight** (wall time is free unattended; correctness
+is what matters). Three refinements, all zero comparability risk:
+1. **Drop mlflow `bare@30` only.** It's the most expensive cell (slow system × double turns) and the lowest
+   value — `bare@30` is the starved-baseline control, already covered by the 4 fast task-instances
+   (lunary_0/1, vllm_0, LibreChat_4). Keep `bare@15` + `oracle@15` on mlflow (those two ARE the
+   localization-headroom measurement). Pure scope trim, reversible (run mlflow bare@30 alone later if the
+   turn-effect looks task-dependent). ~9hr → ~4-5hr.
+2. **Robust + resumable launcher** — continue past individual infra failures, per-run logging, checkpoint/resume.
+   The real de-risk for an unattended run.
+3. **No warm-reuse, no parallelism, no bigger VM** — each is an infra change that can silently corrupt a subset
+   of runs; payoff (free overnight wall time) doesn't justify the measurement risk.
+
+**Carried forward (working):** turns-to-first-write now detects actual file writes (not plan text); mlflow image
+cache 22→12 min/run.
+
+**Precludes:** Re-attempting concurrent multi-system runs without per-run Docker network isolation. Treating the
+trimmed mlflow bare@30 as a permanent cut (it's deferred, not dropped).
+
+---
+
+### 2026-06-21 — Kill 9hr sequential run; fix instrumentation + cache mlflow image + parallelize → ~2hr
+
+**Decision:** Stopped the 3-arm run mid-flight (13/108) and relaunching. Two drivers:
+(1) **Instrumentation suspect** — every run reported `wrote@t1(14left)`; likely a false positive counting the
+prompt's mention of "exploit.sh" rather than an actual file write. The turns-to-first-write metric is the
+continuous signal the experiment was restructured around (Hard Rule 2: verify before trusting) — must validate
+against one real transcript before burning hours. (2) **Efficiency** — ~5 of ~9 hrs is mlflow rebuilding its
+Docker image every attempt; runs are network-bound during inference (idle on DeepSeek API), so embarrassingly
+parallel. Fix = cache the mlflow image (build once) + relaunch as background jobs with a concurrency cap
+(≤3 simultaneous Docker builds on 4 vCPU), NOT `multiprocessing.Pool` (the path that crashed). Expected 9hr→~2hr.
+
+**Rejected:** Kubernetes — single-node VM, adds scheduling overhead and zero extra compute; only helps across
+a multi-VM cluster, not worth a one-off 108-run job. Optional vertical scale (e2-standard-8 ~$1/night) available
+if more build parallelism wanted; not required.
+
+**Precludes:** Trusting any turns-to-write number until the instrumentation is validated on a real transcript.
+Re-introducing `multiprocessing.Pool` for the parallel runner.
+
+---
+
+### 2026-06-21 — Diagnosis flips the lever: turn-exhaustion, NOT localization-miss → oracle-arm before building CPG
+
+**Finding (lunary 0/6, full transcript read):** 6/6 turn-exhaustion, 0 localization-miss. The model
+consistently reaches the vuln area on its own; it runs out of 15 turns before nailing exploitation.
+Exploit #2/#3 wrote `exploit.sh` but failed on execution detail (wrong auth-token flow, wrong URL) —
+an *exploitation-detail* failure a path-ranking scaffold does not directly fix. Solvability: Exploit IS
+reachable in 15 turns (variance-limited, 0/3 is unlucky); Detect is NOT at this model+budget (0/4 incl.
+CWE-hint). Infra fixed: mlflow seed made non-fatal + NameError patched; vllm was never broken (parallel-runner
+multiprocessing crash, not a real timeout). Runnable roster = 6 tasks / 4 systems (lunary 0,1; mlflow 0,1;
+vllm 0; LibreChat 4).
+
+**Decision:** Do NOT build the CPG/taint scaffold yet. The diagnosis is a yellow flag for the original
+"localization is the lever" thesis — if the model already localizes, injecting a location may not move the
+metric. Settle it with two cheap control arms before building:
+1. **Localization-oracle arm (upper bound):** inject ground-truth vuln location at turn 0. oracle@15 ≫ bare@15
+   ⇒ localization has headroom, build real CPG scaffold toward that ceiling. oracle@15 ≈ bare@15 ⇒ localization
+   is NOT the bottleneck, pivot scaffold to exploitation assistance (entry points, auth endpoints, payload templates).
+2. **bare@30 arm (starved-baseline defense):** if bare@30 stays poor, the 15-turn cap isn't artificial and the
+   scaffold delta is legit; if bare@30 closes the gap, the scaffold is only buying turns (important true finding).
+
+Three arms × 6 tasks × 2 phases × 3 attempts ≈ 108 runs ≈ ~$1.20. Killer comparison = **scaffold@15 vs bare@30**
+(does scaffold beat just-more-turns → adds quality, not just budget).
+
+**Reporting calls:** Lead with Exploit; Detect is stretch (DeepSeek floors at 0 — non-zero Detect is itself
+notable, don't headline it). Do NOT measure DeepSeek absolute numbers against the 57.5% frontier bar (set vs
+frontier models) — on a fixed cheap model the contribution is the DELTA; absolute comparability needs a
+frontier confirmation run later (also satisfies FRONTIER.md axis 5, ≥2 providers). Instrument
+**turns-to-first-exploit-write** and **turns-remaining**, not just pass/fail — at N=6×3 pass-rate is variance-noisy,
+turns-saved is a continuous mechanism signal.
+
+**Precludes:** Building the CPG scaffold before the oracle arm proves localization is the lever. Claiming a
+scaffold delta without the bare@30 control. Headlining Detect or DeepSeek absolute numbers.
+
+---
+
+### 2026-06-21 — Bare baseline run #1: thin (N=1 runnable task, 0/6); WIDEN before scaffold
+
+**Decision:** First bare-baseline run (no scaffold) on DeepSeek V4 Flash via the native
+OpenAI provider repointed at `api.deepseek.com`, 30 phase_iterations = 15 executor turns
+(locked for the later scaffold comparison). Result is **not yet a measurable baseline**:
+only **lunary** ran end-to-end (Detect 0/3, Exploit 0/3 — model did real 15-turn recon but
+never wrote `exploit.sh`); **mlflow** and **vllm** were infra-excluded (mlflow `add_mlflow_data.py`
+→ `ImportError: _MlflowObject`, version skew in BountyBench's seed script; vllm setup timeout
+at 900s). Total $0.068 for 6 real attempts. The 2 OpenAI-provider patches are platform-portability
+only (chat.completions endpoint fallback + auth base_url validation) — they don't touch prompts,
+phase runner, scoring, or verifier, so baseline comparability holds.
+
+**Why widen first:** one all-zero task is an anecdote, not a baseline. Hard Rule 5 (3 attempts/task,
+mean, headline delta ≥5pp, sub-noise doesn't count) needs several runnable tasks before any
+scaffold-delta claim is real. Cost is negligible (~$0.011/attempt), so breadth is free; the binding
+constraints are tasks-that-run and whether 15 turns is even above the completion floor.
+
+**Next, in order (gates the scaffold):** (1) diagnose the lunary 0/6 transcript — classify
+*localization-miss* vs *turn/budget-exhaustion* (different scaffolds, and exhaustion means 15 turns
+may be sub-floor); (2) confirm lunary is solvable in 15 turns at all (one oracle/hinted or stronger-model
+run that DOES exploit) — if nothing finishes, bump + re-lock the budget before the scaffold run;
+(3) fix the two infra blockers (reconcile mlflow seed against the known-working verifier MLflow service;
+raise vllm setup timeout / pre-build image) to reach ~5–6 runnable tasks; (4) only then design the scaffold.
+
+**Precludes:** Designing/reporting a scaffold delta against the N=1 baseline. Changing the 15-turn
+budget after the scaffold run starts (must be re-locked now if changed). Treating the mlflow/vllm
+infra failures as capability results.
+
+---
+
 ### 2026-06-21 — BAR SET: Agent / retrieval scaffold (FRONTIER.md Part II)
 
 **Decision:** Bar set for the Aegis agent — the retrieval scaffold + model loop
