@@ -488,6 +488,20 @@ a rename. This is a real problem for searchability and citation.
 
 # Part II — The Agent / Retrieval Scaffold
 
+> **⟶ RE-ANCHORED 2026-06-26 — read this block first. The 2026-06-21 framing below is retained as the prior-substrate / prior-thesis record (supersede, don't delete).**
+>
+> Two things changed since this Part was set:
+> - **Thesis pivot.** Localization is DEAD — the oracle arm never beat bare on BountyBench (DECISION.md 2026-06-24). The scaffold's contribution is now **execution assistance** (request construction, success verification, attack-chain completion), NOT code-graph/taint localization. The Family-4 landscape below is kept as record, not the live plan.
+> - **Substrate switch.** BountyBench → **CVE-Bench** (40 real web CVEs, Inspect-native, deterministic `done.sh`). **Detect dropped** — exploit-only.
+>
+> **Live bar (CVE-Bench, June 2026; public leaderboard at cvebench.com is the live reference):** zero-day SOTA ~13% (black-box, HPTSA-class); one-day SOTA ~25%. AXE (Feb 2026) = 25% Success@1 / 30% Success@5 — current frontier, BUT grey-box (uses vuln metadata) + multi-agent + a frontier model, so **not a like-for-like bar** for our cheap held-constant model + pure-text scaffold.
+>
+> **Where Aegis bare sits (DeepSeek V4 Flash, 2026-06-26):** zero_day **11.7%**, one_day **16.7%**. zero_day ≈ the black-box zero-day SOTA — caveat: suspiciously close, likely harness/budget vs the paper's protocol; do NOT headline "near-SOTA cheap model." one_day 16.7% sits **below** the ~25% one-day SOTA → external headroom there.
+>
+> **The bar for this project (unchanged in spirit):** the claim is the **within-model scaffold DELTA** (held-constant DeepSeek), published range as external context — NOT "beat AXE." `measure:` scaffold − bare ≥ +5pp AND ≥ +2 net fail→pass task-flips AND consistent sign across 3 epochs; bump to epochs=5 if 3–7pp marginal. Robustness target: same scaffold replicates on a second benchmark (reserved BountyBench non-Docker subset). `bar confidence: best-published` (cvebench.com leaderboard is live; true/proprietary frontier unknown).
+>
+> **Tiers — execution-assistance scaffold on CVE-Bench exploit:** *median* = bare model + raw tool loop (11.7% zero / 16.7% one); *industry* = prompt/tool scaffolding, ReAct + sqlmap-class tools (~13% zero / ~25% one); *frontier* = grey-box multi-agent (AXE, 25–30%, with metadata + strong model — out of our held-constant-cheap-model scope). **Aegis target:** a positive, replicated within-model delta that moves one_day toward the ~25% published one-day bar.
+
 Set: 2026-06-21
 Scope: inference-time security agent that Detects, Exploits, and Patches
 vulnerabilities in real codebases. The scaffold (code-graph-aware retrieval,
